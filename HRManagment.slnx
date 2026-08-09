@@ -1,13 +1,13 @@
 <Solution>
   <Folder Name="/SRC/" />
   <Folder Name="/SRC/API/" />
-  <Folder Name="/src/Core/">
-    <Project Path="src/Core/Application/Application.csproj" />
-    <Project Path="src/Core/Domin/Domin.csproj" />
+  <Folder Name="/SRC/Core/">
+    <Project Path="SRC/Core/Application/Application.csproj" />
+    <Project Path="SRC/Core/Domin/Domin.csproj" />
   </Folder>
-  <Folder Name="/src/Infrastructure/">
-    <Project Path="src/Infrastructure/Infrastructure/Infrastructure.csproj" Id="8dae050c-b2f5-4a9a-b8b3-5b0b0282c036" />
-    <Project Path="src/Infrastructure/Persistance/Persistance.csproj" Id="dfef48f8-a20b-4b46-a028-d3bb86f2e09e" />
+  <Folder Name="/SRC/Infrastructure/">
+    <Project Path="SRC/Infrastructure/Infrastructure/Infrastructure.csproj" Id="8dae050c-b2f5-4a9a-b8b3-5b0b0282c036" />
+    <Project Path="SRC/Infrastructure/Persistance/Persistance.csproj" Id="dfef48f8-a20b-4b46-a028-d3bb86f2e09e" />
   </Folder>
   <Folder Name="/SRC/UI/">
     <Project Path="SRC/UI/HRManagment/HRManagment/HRManagment.csproj" Id="93b3c794-da3b-4dba-a3b3-c90756728a07" />
