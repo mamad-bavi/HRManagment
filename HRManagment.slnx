@@ -1,3 +1,10 @@
 <Solution>
-  <Project Path="HRManagment/HRManagment.csproj" />
+  <Folder Name="/SRC/" />
+  <Folder Name="/SRC/API/" />
+  <Folder Name="/SRC/Core/" />
+  <Folder Name="/SRC/Infrastructure/" />
+  <Folder Name="/SRC/UI/">
+    <Project Path="SRC/UI/HRManagment/HRManagment/HRManagment.csproj" Id="93b3c794-da3b-4dba-a3b3-c90756728a07" />
+  </Folder>
+  <Folder Name="/TEST/" />
 </Solution>

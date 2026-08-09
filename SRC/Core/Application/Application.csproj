@@ -1,0 +1,69 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AutoMapper" Version="12.0.1" />
+    <PackageReference Include="AutoMapper.Extensions.Microsoft.DependencyInjection" Version="12.0.1" />
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
+    <PackageReference Include="Mapster" Version="9.0.0-pre01" />
+    <PackageReference Include="MediatR" Version="14.0.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Domin\Domin.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="DTOsParent\Users\" />
+    <Folder Include="DTOsParent\Permission\" />
+    <Folder Include="DTOsParent\Setting\" />
+    <Folder Include="Features\Car\CarImage\Handlers\Commands\" />
+    <Folder Include="Features\Car\CarImage\Requests\Commands\" />
+    <Folder Include="Features\Car\CarModel\Handlers\Commands\" />
+    <Folder Include="Features\Car\CarModel\Requests\Commands\" />
+    <Folder Include="Features\Car\Car\Handlers\Commands\" />
+    <Folder Include="Features\Car\Car\Requests\Commands\" />
+    <Folder Include="Features\Car\CompanyBuilder\Handlers\Commands\" />
+    <Folder Include="Features\Car\CompanyBuilder\Requests\Commands\" />
+    <Folder Include="Features\Car\Fuel\Handlers\Commands\" />
+    <Folder Include="Features\Car\Fuel\Requests\Commands\" />
+    <Folder Include="Features\Car\Person\Handlers\Commands\" />
+    <Folder Include="Features\Car\Person\Requests\Commands\" />
+    <Folder Include="Features\Setting\FileUploadSetting\Handlers\Commands\" />
+    <Folder Include="Features\Setting\FileUploadSetting\Requests\Commands\" />
+    <Folder Include="Features\Users\City\Handlers\Commands\" />
+    <Folder Include="Features\Users\City\Requests\Commands\" />
+    <Folder Include="Features\Users\Office\Handlers\Commands\" />
+    <Folder Include="Features\Users\Office\Requests\Commands\" />
+    <Folder Include="Features\Users\Province\Handlers\Commands\" />
+    <Folder Include="Features\Users\Province\Requests\Commands\" />
+    <Folder Include="Features\Users\Role\Handlers\Commands\" />
+    <Folder Include="Features\Users\Role\Requests\Commands\" />
+    <Folder Include="Features\Users\UserRole\Handlers\Commands\" />
+    <Folder Include="Features\Users\UserRole\Requests\Commands\" />
+    <Folder Include="Features\Users\User\Handlers\Commands\" />
+    <Folder Include="Features\Users\User\Requests\Commands\" />
+    <Folder Include="FluentValidators\Car\CarImage\" />
+    <Folder Include="FluentValidators\Car\CarModel\" />
+    <Folder Include="FluentValidators\Car\CompanyBuilder\" />
+    <Folder Include="FluentValidators\Car\Fuel\" />
+    <Folder Include="FluentValidators\Car\Person\" />
+    <Folder Include="FluentValidators\Car\Car\" />
+    <Folder Include="FluentValidators\Pernssions\RolePermission\" />
+    <Folder Include="FluentValidators\Pernssions\Permission\" />
+    <Folder Include="FluentValidators\Setting\FileUploadSetting\" />
+    <Folder Include="FluentValidators\Users\UserRole\" />
+    <Folder Include="FluentValidators\Users\Role\" />
+    <Folder Include="FluentValidators\Users\City\" />
+    <Folder Include="FluentValidators\Users\Office\" />
+    <Folder Include="FluentValidators\Users\User\" />
+    <Folder Include="FluentValidators\Users\Province\" />
+  </ItemGroup>
+
+</Project>
