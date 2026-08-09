@@ -7,18 +7,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Remove="DTOsParent\**" />
-    <Compile Remove="Features\**" />
-    <Compile Remove="FluentValidators\**" />
-    <EmbeddedResource Remove="DTOsParent\**" />
-    <EmbeddedResource Remove="Features\**" />
-    <EmbeddedResource Remove="FluentValidators\**" />
-    <None Remove="DTOsParent\**" />
-    <None Remove="Features\**" />
-    <None Remove="FluentValidators\**" />
-  </ItemGroup>
-
-  <ItemGroup>
     <PackageReference Include="AutoMapper" Version="12.0.1" />
     <PackageReference Include="AutoMapper.Extensions.Microsoft.DependencyInjection" Version="12.0.1" />
     <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
@@ -29,6 +17,10 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Domin\Domin.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+ 
   </ItemGroup>
 
 </Project>
