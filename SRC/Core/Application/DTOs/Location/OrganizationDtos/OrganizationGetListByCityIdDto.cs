@@ -5,7 +5,7 @@ using System.Text;
 
 namespace Application.DTOs.Location.OrganizationDtos
 {
-    public class OrganizationGetByCityIdDto : BaseDto
+    public class OrganizationGetListByCityIdDto : BaseDto
     {
     }
 }
