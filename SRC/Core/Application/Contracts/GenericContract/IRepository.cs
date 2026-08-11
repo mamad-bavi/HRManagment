@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Application.Filters;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq.Expressions;
@@ -28,7 +29,9 @@ namespace Application.Contracts.GenericContract
         TEntity GetById(params object[] ids);
         TEntity GetByIdDeleted(params object[] ids);
         Task<TEntity> GetByIdAsync(CancellationToken cancellationToken, params object[] ids);
+        Task<GreadData<TEntity>> GetListAsync(CancellationToken cancellationToken, GreadData<TEntity> data);
         Task<TEntity> GetByIdDeletedAsync(CancellationToken cancellationToken, params object[] ids);
+        Task<GreadData<TEntity>> GetDeletedAsync(CancellationToken cancellationToken, GreadData<TEntity> data);
         void LoadCollection<TProperty>(TEntity entity, Expression<Func<TEntity, IEnumerable<TProperty>>> collectionProperty) where TProperty : class;
         Task LoadCollectionAsync<TProperty>(TEntity entity, Expression<Func<TEntity, IEnumerable<TProperty>>> collectionProperty, CancellationToken cancellationToken) where TProperty : class;
         void LoadReference<TProperty>(TEntity entity, Expression<Func<TEntity, TProperty>> referenceProperty) where TProperty : class;
@@ -37,15 +40,14 @@ namespace Application.Contracts.GenericContract
         Task UpdateAsync(TEntity entity, CancellationToken cancellationToken, bool saveNow = true);
         void UpdateRange(IEnumerable<TEntity> entities, bool saveNow = true);
         Task UpdateRangeAsync(IEnumerable<TEntity> entities, CancellationToken cancellationToken, bool saveNow = true);
-        Task<TEntity> GetByIdQuerAsync(long Id);
-        Task<TEntity> GetByIdQuerDeletedItemAsync(long Id);
-        Task<IEnumerable<TEntity>> GetByQueryAsync(CancellationToken cancellationToken, string where = null);
-        Task<IEnumerable<TEntity>> GetByQueryDeletedItemsAsync(CancellationToken cancellationToken, string where = null);
-        Task<IEnumerable<TEntity>> GetByRangIdQuerAsync(List<long> Ids);
+        Task<GreadData<TEntity>> GetByIdQuerAsync(long Id);
+        Task<GreadData<TEntity>> GetByIdQuerDeletedItemAsync(long Id);
+        Task<GreadData<TEntity>> GetByQueryAsync(CancellationToken cancellationToken, GreadData<TEntity> data);
+        Task<GreadData<TEntity>> GetByQueryDeletedItemsAsync(CancellationToken cancellationToken, GreadData<TEntity> data);
+        Task<GreadData<TEntity>> GetByRangIdQuerAsync(List<long> Ids);
         Task AddAsync<TDto,TEntity>(TDto dto, CancellationToken cancellationToken, bool saveNow = true);
         Task UpdateAsync<TDto,TEntity>(TDto dto, CancellationToken cancellationToken, bool saveNow = true);
-        Task<TDto> GetDtoById<TDto, TEntity, TKey>(TKey Id, CancellationToken cancellationToken);
-        Task<IQueryable<TDto>> GetDtos<TDto,TEntit>(Expression<Func<TEntity, bool>> predicate, CancellationToken cancellationToken);
-        Task<IEnumerable<TDto>> GetDtos<TDto,TEntity>(CancellationToken cancellationToken);
+        Task<IEnumerable<TDto>> GetDtoById<TDto, TEntity, TKey>(TKey Id, CancellationToken cancellationToken);
+        Task<IEnumerable<TDto>> GetDtos<TDto,TEntit>(Expression<Func<TEntity, bool>> predicate, CancellationToken cancellationToken);
     }
 }

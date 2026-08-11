@@ -1,4 +1,5 @@
 ﻿using Application.DTOs.Location.OrganizationDtos;
+using Application.Filters;
 using MediatR;
 using System;
 using System.Collections.Generic;
@@ -6,8 +7,9 @@ using System.Text;
 
 namespace Application.Feaures.Location.Organization.Requests.Queries
 {
-    public class OrganizationGetListByCityIdRequest : IRequest<IEnumerable<OrganizationGetListByCityIdDto>>
+    public class OrganizationGetListByCityIdRequest : IRequest<GreadData<OrganizationGetListByCityIdDto>>
     {
         public long CityId { get; set; }
+        public GreadData<OrganizationGetListByCityIdDto> GreadData { get; set; }
     }
 }

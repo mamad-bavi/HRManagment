@@ -3,7 +3,7 @@
   <Folder Name="/SRC/API/" />
   <Folder Name="/SRC/Core/">
     <Project Path="SRC/Core/Application/Application.csproj" Id="234d10c6-2b9b-459b-9f0e-e784daac0489" />
-    <Project Path="SRC/Core/Domin/Domin.csproj" />
+    <Project Path="SRC/Core/Domain/Domain.csproj" Id="fe9eea86-0cb1-4158-9d4b-a3d038223c28" />
   </Folder>
   <Folder Name="/SRC/Infrastructure/">
     <Project Path="SRC/Infrastructure/Infrastructure/Infrastructure.csproj" Id="8dae050c-b2f5-4a9a-b8b3-5b0b0282c036" />
