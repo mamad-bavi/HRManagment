@@ -6,8 +6,8 @@ using System.Text;
 
 namespace Application.Feaures.Location.City.Requests.Queries
 {
-    public class CityGetByIdRequest : IRequest<CityGetByIdDto>
+    public class CityGetListRequest : IRequest<IEnumerable<CityGetListDto>>
     {
-        public long Id { get; set; }
+
     }
 }
