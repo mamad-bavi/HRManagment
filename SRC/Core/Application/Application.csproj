@@ -17,11 +17,9 @@
     <Folder Include="Feaures\Location\Organization\Handlers\Commands\" />
     <Folder Include="Feaures\Location\Organization\Handlers\Queries\" />
     <Folder Include="Feaures\Location\Organization\Requests\Commands\" />
-    <Folder Include="Feaures\Location\Organization\Requests\Queries\" />
     <Folder Include="Feaures\Location\Province\Handlers\Commands\" />
     <Folder Include="Feaures\Location\Province\Handlers\Queries\" />
     <Folder Include="Feaures\Location\Province\Requests\Commands\" />
-    <Folder Include="Feaures\Location\Province\Requests\Queries\" />
   </ItemGroup>
 
   <ItemGroup>
