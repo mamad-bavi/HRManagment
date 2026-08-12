@@ -23,6 +23,7 @@ namespace Application.Contracts.GenericContract
         void Attach(TEntity entity);
         void Delete(TEntity entity, bool saveNow = true);
         Task DeleteAsync(TEntity entity, CancellationToken cancellationToken, bool saveNow = true);
+        //Task DeleteByIdAsync(CancellationToken cancellationToken, bool saveNow = true, params object[] ids);
         void DeleteRange(IEnumerable<TEntity> entities, bool saveNow = true);
         Task DeleteRangeAsync(IEnumerable<TEntity> entities, CancellationToken cancellationToken, bool saveNow = true);
         void Detach(TEntity entity);
