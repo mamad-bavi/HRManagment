@@ -5,7 +5,7 @@ using System.Text;
 
 namespace Domain.Entities.Location
 {
-    public class Province:BaseEntity
+    public class Province : BaseEntity
     {
         public string Name { get; set; }
 
