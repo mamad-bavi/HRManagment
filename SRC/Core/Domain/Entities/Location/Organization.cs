@@ -1,10 +1,11 @@
-﻿using System;
+﻿using Domain.Entities.Base;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
 namespace Domain.Entities.Location
 {
-    public class Organization
+    public class Organization : BaseEntity
     {
         public string Name { get; set; }
 
