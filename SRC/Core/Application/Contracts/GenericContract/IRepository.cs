@@ -50,5 +50,9 @@ namespace Application.Contracts.GenericContract
         Task UpdateAsync<TDto,TEntity>(TDto dto, CancellationToken cancellationToken, bool saveNow = true);
         Task<IEnumerable<TDto>> GetDtoById<TDto, TEntity, TKey>(TKey Id, CancellationToken cancellationToken);
         Task<IEnumerable<TDto>> GetDtos<TDto,TEntit>(Expression<Func<TEntity, bool>> predicate, CancellationToken cancellationToken);
+        Task BeginTransactionAsync();
+        Task CommitTransactionAsync();
+        Task RollBackTransActionAsync();
+
     }
 }

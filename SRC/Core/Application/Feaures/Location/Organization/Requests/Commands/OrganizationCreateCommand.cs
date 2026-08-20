@@ -1,4 +1,4 @@
-﻿using Application.DTOs.Location.OrganizationDtos;
+﻿using Application.DTOs.Location.OrganizationDtos.CommandDtos;
 using MediatR;
 using System;
 using System.Collections.Generic;

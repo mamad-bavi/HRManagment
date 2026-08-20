@@ -1,4 +1,4 @@
-﻿using Application.DTOs.Location.CityDtos;
+﻿using Application.DTOs.Location.CityDtos.QueryDtos;
 using MediatR;
 using System;
 using System.Collections.Generic;

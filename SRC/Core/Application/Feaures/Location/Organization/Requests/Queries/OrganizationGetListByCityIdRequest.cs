@@ -1,4 +1,4 @@
-﻿using Application.DTOs.Location.OrganizationDtos;
+﻿using Application.DTOs.Location.OrganizationDtos.QueryDtos;
 using Application.Filters;
 using MediatR;
 using System;
