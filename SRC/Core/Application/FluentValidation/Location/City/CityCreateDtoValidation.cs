@@ -11,7 +11,9 @@ namespace Application.FluentValidation.Location.City
         public CityCreateDtoValidation()
         {
 
-            RuleFor(c=>c.na)
+            RuleFor(c => c.Name)
+                .MaximumLength(100)
+                .WithMessage("{Property} نباید بیش از 100 کاراکتر باشد");
         }
     }
 }
