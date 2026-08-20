@@ -1,5 +1,5 @@
 ﻿using Application.Contracts.Location;
-using Application.DTOs.Location.ProvinceDtos;
+using Application.DTOs.Location.ProvinceDtos.CommandDtos;
 using Application.Feaures.Location.Province.Requests.Commands;
 using Application.Utilities.AutoMapperGeneric;
 using MediatR;

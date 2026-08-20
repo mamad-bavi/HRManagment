@@ -1,5 +1,5 @@
 ﻿using Application.Contracts.Location;
-using Application.DTOs.Location.OrganizationDtos;
+using Application.DTOs.Location.OrganizationDtos.CommandDtos;
 using Application.Feaures.Location.Organization.Requests.Commands;
 using Application.Utilities.AutoMapperGeneric;
 using MediatR;

@@ -1,5 +1,5 @@
 ﻿using Application.Contracts.Location;
-using Application.DTOs.Location.CityDtos;
+using Application.DTOs.Location.CityDtos.CommandDtos;
 using Application.Feaures.Location.City.Requests.Commands;
 using Application.Utilities.AutoMapperGeneric;
 using Domain.Entities.Location;

@@ -1,4 +1,4 @@
-﻿using Application.DTOs.Location.ProvinceDtos;
+﻿using Application.DTOs.Location.ProvinceDtos.QueryDtos;
 using MediatR;
 using System;
 using System.Collections.Generic;

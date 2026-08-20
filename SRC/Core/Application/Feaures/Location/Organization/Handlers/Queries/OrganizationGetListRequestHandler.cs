@@ -1,5 +1,5 @@
 ﻿using Application.Contracts.Location;
-using Application.DTOs.Location.OrganizationDtos;
+using Application.DTOs.Location.OrganizationDtos.QueryDtos;
 using Application.DTOs.Location.ProvinceDtos;
 using Application.Feaures.Location.Organization.Requests.Queries;
 using Application.Filters;
