@@ -6,7 +6,7 @@ using System.Text;
 
 namespace Application.Contracts.Location
 {
-    public interface IProvinceRepository: IRepository<Province>
+    public interface IProvinceRepository: IRepositoryPublicAsyncEFCore<Province>
     {
 
     }
