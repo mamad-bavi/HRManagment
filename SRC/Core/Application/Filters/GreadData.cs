@@ -4,7 +4,7 @@ using System.Text;
 
 namespace Application.Filters
 {
-    public class GreadData<T> where T : class,new()
+    public class GreadData<T> where T : class
     {
         public IEnumerable<T>? Data { get; set; }
         public T? Entity { get; set; }
@@ -20,6 +20,6 @@ namespace Application.Filters
     public class Filter
     {
         public string Property { get; set; }
-        public string Value { get; set; }
+        public object Value { get; set; }
     }
 }

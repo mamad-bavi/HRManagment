@@ -1,4 +1,5 @@
 ﻿using Application.Filters;
+using Domain.Entities.Base;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
@@ -8,7 +9,7 @@ using System.Text;
 
 namespace Application.Contracts.GenericContract
 {
-    public interface IRepository<TEntity> where TEntity : class , new()
+    public interface IRepository<TEntity> where TEntity : class, IBaseEntity
     {
         DbSet<TEntity> Entities { get; }
         IQueryable<TEntity> TableDeleted { get; }
@@ -41,18 +42,18 @@ namespace Application.Contracts.GenericContract
         Task UpdateAsync(TEntity entity, CancellationToken cancellationToken, bool saveNow = true);
         void UpdateRange(IEnumerable<TEntity> entities, bool saveNow = true);
         Task UpdateRangeAsync(IEnumerable<TEntity> entities, CancellationToken cancellationToken, bool saveNow = true);
-        Task<GreadData<TEntity>> GetByIdQuerAsync(long Id);
-        Task<GreadData<TEntity>> GetByIdQuerDeletedItemAsync(long Id);
+        Task<TEntity> GetByIdQuerAsync(long Id);
+        Task<GreadData<TEntity>> GetByIdDeletedItemQueryAsync(long Id);
         Task<GreadData<TEntity>> GetByQueryAsync(CancellationToken cancellationToken, GreadData<TEntity> data);
         Task<GreadData<TEntity>> GetByQueryDeletedItemsAsync(CancellationToken cancellationToken, GreadData<TEntity> data);
         Task<GreadData<TEntity>> GetByRangIdQuerAsync(List<long> Ids);
-        Task AddAsync<TDto,TEntity>(TDto dto, CancellationToken cancellationToken, bool saveNow = true);
-        Task UpdateAsync<TDto,TEntity>(TDto dto, CancellationToken cancellationToken, bool saveNow = true);
+        Task AddAsync<TDto, TEntity>(TDto dto, CancellationToken cancellationToken, bool saveNow = true);
+        Task UpdateAsync<TDto, TEntity>(TDto dto, CancellationToken cancellationToken, bool saveNow = true);
         Task<IEnumerable<TDto>> GetDtoById<TDto, TEntity, TKey>(TKey Id, CancellationToken cancellationToken);
-        Task<IEnumerable<TDto>> GetDtos<TDto,TEntit>(Expression<Func<TEntity, bool>> predicate, CancellationToken cancellationToken);
-        Task BeginTransactionAsync();
-        Task CommitTransactionAsync();
-        Task RollBackTransActionAsync();
+        Task<IEnumerable<TDto>> GetDtos<TDto, TEntit>(Expression<Func<TEntity, bool>> predicate, CancellationToken cancellationToken);
+        Task BeginTransactionAsync( CancellationToken cancellationToken);
+        Task CommitTransactionAsync(CancellationToken cancellationToken);
+        Task RollbackTransactionAsync(CancellationToken cancellationToken);
 
     }
 }
