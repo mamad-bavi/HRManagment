@@ -1,9 +1,8 @@
-﻿using Common.Utilities;
-using System.Globalization;
+﻿using System.Globalization;
 using System.Security.Claims;
 using System.Security.Principal;
 
-namespace Common
+namespace Common.Utilities
 {
     public static class IdentityExtensions
     {
