@@ -9,7 +9,7 @@ using System.Collections.Generic;
 using System.Linq.Expressions;
 using System.Text;
 
-namespace Persistance.Repository.BaseRepository
+namespace Persistance.Repository.GenericRepository
 {
     public class RepositoryPublicAsyncDtoEFCore<TEntity> :
         RepositoryPublicAsyncEFCore<TEntity>,
