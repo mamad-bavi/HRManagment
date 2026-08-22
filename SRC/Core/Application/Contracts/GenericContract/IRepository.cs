@@ -47,10 +47,10 @@ namespace Application.Contracts.GenericContract
         Task<GreadData<TEntity>> GetByQueryAsync(CancellationToken cancellationToken, GreadData<TEntity> data);
         Task<GreadData<TEntity>> GetByQueryDeletedItemsAsync(CancellationToken cancellationToken, GreadData<TEntity> data);
         Task<GreadData<TEntity>> GetByRangIdQuerAsync(List<long> Ids);
-        Task AddAsync<TDto, TEntity>(TDto dto, CancellationToken cancellationToken, bool saveNow = true);
-        Task UpdateAsync<TDto, TEntity>(TDto dto, CancellationToken cancellationToken, bool saveNow = true);
-        Task<IEnumerable<TDto>> GetDtoById<TDto, TEntity, TKey>(TKey Id, CancellationToken cancellationToken);
-        Task<IEnumerable<TDto>> GetDtos<TDto, TEntit>(Expression<Func<TEntity, bool>> predicate, CancellationToken cancellationToken);
+        Task AddAsync<TDto>(TDto dto, CancellationToken cancellationToken, bool saveNow = true);
+        Task UpdateAsync<TDto>(TDto dto, CancellationToken cancellationToken, bool saveNow = true);
+        Task<TDto> GetDtoById<TDto, TKey>(TKey Id, CancellationToken cancellationToken);
+        Task<IEnumerable<TDto>> GetDtos<TDto>(Expression<Func<TEntity, bool>> predicate, CancellationToken cancellationToken);
         Task BeginTransactionAsync( CancellationToken cancellationToken);
         Task CommitTransactionAsync(CancellationToken cancellationToken);
         Task RollbackTransactionAsync(CancellationToken cancellationToken);

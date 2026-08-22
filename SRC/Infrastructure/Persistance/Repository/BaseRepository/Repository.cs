@@ -73,57 +73,68 @@ namespace Persistance.Repository.BaseRepository
             using (var connection = new SqlConnection(connectionString))
             {
                 GreadData<TEntity> greadData = new GreadData<TEntity>();
-                
+
                 greadData.Data = await connection.QueryFirstOrDefaultAsync<IEnumerable<TEntity>>(sql);
 
                 return greadData;
             }
         }
 
-        public async Task<TEntity> GetByIdQuerDeletedItemAsync(long Id)
-        {
-            var tableName = typeof(TEntity).Name;
-            var connectionString = configuration.GetConnectionString("SqlServerConnection");
+        
 
-            var sql = $"SELECT * FROM [{tableName}] WHERE IsDeleted = 1 and Id = @Id";
-
-            using (var connection = new SqlConnection(connectionString))
-            {
-                return await connection.QueryFirstOrDefaultAsync<TEntity>(sql, new { Id = Id });
-            }
-        }
-
-        public virtual async Task<IEnumerable<TEntity>> GetByQueryAsync(CancellationToken cancellationToken, string where = null)
+        public virtual async Task<GreadData<TEntity>> GetByQueryAsync(CancellationToken cancellationToken, GreadData<TEntity> data)
         {
             var tableName = typeof(TEntity).Name;
             var sql = $"SELECT * FROM [{tableName}] WHERE IsDeleted <> 1";
             var connectionString = configuration.GetConnectionString("SqlServerConnection");
 
-            if (!string.IsNullOrWhiteSpace(where))
-                sql += " AND " + where;
+            //if (!string.IsNullOrWhiteSpace(where))
+            //    sql += " AND " + where;
+            foreach (var filter in data.Filter)
+            {
+                sql += $" And {filter.Property} Like N'%{filter.Value}%'";
+            }
 
 
             using (var connection = new SqlConnection(connectionString))
             {
                 await connection.OpenAsync();
-                return await connection.QueryAsync<TEntity>(sql, cancellationToken);
+                data.Data = (await connection.QueryAsync<TEntity>(sql, cancellationToken))
+                    .Skip((data.Page - 1) * data.PageSize)
+                    .Take(data.PageSize)
+                    .ToList();
+                data.PageCount = data.PageSize;
+                data.Count = data.Data.Count();
+                return data;
             }
         }
 
-        public virtual async Task<IEnumerable<TEntity>> GetByQueryDeletedItemsAsync(CancellationToken cancellationToken, string where = null)
+        public virtual async Task<GreadData<TEntity>> GetByQueryDeletedItemsAsync(CancellationToken cancellationToken, GreadData<TEntity> data)
         {
             var tableName = typeof(TEntity).Name;
             var sql = $"SELECT * FROM [{tableName}] WHERE IsDeleted = 1";
 
-            if (!string.IsNullOrWhiteSpace(where))
-                sql += " AND " + where;
+            //if (!string.IsNullOrWhiteSpace(where))
+            //    sql += " AND " + where;
+
+            foreach (var filter in data.Filter)
+            {
+                sql += $" And {filter.Property} Like N'%{filter.Value}%'";
+            }
+
 
             var connectionString = configuration.GetConnectionString("SqlServerConnection");
 
             using (var connection = new SqlConnection(connectionString))
             {
                 await connection.OpenAsync();
-                return await connection.QueryAsync<TEntity>(sql, cancellationToken);
+                data.Data = (await connection.QueryAsync<TEntity>(sql, cancellationToken))
+                       .Skip((data.Page - 1) * data.PageSize)
+                       .Take(data.PageSize)
+                       .ToList();
+                data.PageCount = data.PageSize;
+                data.Count = data.Data.Count();
+                return data;
             }
         }
 
@@ -442,13 +453,6 @@ namespace Persistance.Repository.BaseRepository
         }
 
 
-        public async Task<TDto> GetDtoById<TDto, TKey>(TKey Id, CancellationToken cancellationToken)
-        {
-            var Item = await TableNoTracking.FirstOrDefaultAsync(e =>
-            EF.Property<TKey>(e, "Id").Equals(Id), cancellationToken);
-            var dto = Item.ConvertObject<TDto, TEntity>();
-            return dto;
-        }
         #endregion
 
 
@@ -470,7 +474,7 @@ namespace Persistance.Repository.BaseRepository
             }
 
             data.Data = await query
-                .Skip((data.Page- 1) * data.PageSize)
+                .Skip((data.Page - 1) * data.PageSize)
                 .Take(data.PageSize)
                 .ToListAsync(cancellationToken);
             data.PageCount = data.PageSize;
@@ -519,40 +523,32 @@ namespace Persistance.Repository.BaseRepository
 
 
 
-        public Task<GreadData<TEntity>> GetByQueryAsync(CancellationToken cancellationToken, GreadData<TEntity> data)
+        public async Task<GreadData<TEntity>> GetByIdDeletedItemQueryAsync(long Id)
+        {
+            var tableName = typeof(TEntity).Name;
+            var connectionString = configuration.GetConnectionString("SqlServerConnection");
+
+            var sql = $"SELECT * FROM [{tableName}] WHERE IsDeleted = 1 and Id = @Id";
+
+            using (var connection = new SqlConnection(connectionString))
+            {
+                GreadData<TEntity> data = new();
+                data.Entity = await connection.QueryFirstOrDefaultAsync<TEntity>(sql, new { Id = Id });
+                return data;
+            }
+        }
+
+        public Task UpdateAsync<TDto>(TDto dto, CancellationToken cancellationToken, bool saveNow = true)
         {
             throw new NotImplementedException();
         }
 
-        public Task<GreadData<TEntity>> GetByQueryDeletedItemsAsync(CancellationToken cancellationToken, GreadData<TEntity> data)
+        public async Task<TDto> GetDtoById<TDto, TKey>(TKey Id, CancellationToken cancellationToken)
         {
-            throw new NotImplementedException();
-        }
-
-        
-        public Task AddAsync<TDto, TEntity1>(TDto dto, CancellationToken cancellationToken, bool saveNow = true)
-        {
-            throw new NotImplementedException();
-        }
-
-        public Task UpdateAsync<TDto, TEntity1>(TDto dto, CancellationToken cancellationToken, bool saveNow = true)
-        {
-            throw new NotImplementedException();
-        }
-
-        public Task<IEnumerable<TDto>> GetDtoById<TDto, TEntity1, TKey>(TKey Id, CancellationToken cancellationToken)
-        {
-            throw new NotImplementedException();
-        }
-
-        public Task<IEnumerable<TDto>> GetDtos<TDto, TEntit>(Expression<Func<TEntity, bool>> predicate, CancellationToken cancellationToken)
-        {
-            throw new NotImplementedException();
-        }
-
-        public Task<GreadData<TEntity>> GetByIdDeletedItemQueryAsync(long Id)
-        {
-            throw new NotImplementedException();
+            var Item = await TableNoTracking.FirstOrDefaultAsync(e =>
+            EF.Property<TKey>(e, "Id").Equals(Id), cancellationToken);
+            var dto = Item.ConvertObject<TDto, TEntity>();
+            return dto;
         }
     }
 
