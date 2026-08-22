@@ -12,7 +12,7 @@ using System.Linq.Expressions;
 using System.Text;
 using static Dapper.SqlMapper;
 
-namespace Persistance.Repository.BaseRepository
+namespace Persistance.Repository.GenericRepository
 {
     public class RepositoryPublicAsyncEFCore<TEntity> :
         IRepositoryPublicAsyncEFCore<TEntity> where TEntity : class, IBaseEntity

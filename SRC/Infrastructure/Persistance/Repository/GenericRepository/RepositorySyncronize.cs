@@ -17,7 +17,7 @@ using System.Security.Principal;
 using System.Text;
 using static Dapper.SqlMapper;
 
-namespace Persistance.Repository.BaseRepository
+namespace Persistance.Repository.GenericRepository
 {
     public class RepositorySyncronize<TEntity> : 
         IRepositorySyncronize<TEntity> where TEntity : class,

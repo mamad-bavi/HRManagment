@@ -8,7 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace Persistance.Repository.BaseRepository
+namespace Persistance.Repository.GenericRepository
 {
     public class RepositoryPublicAsyncDapper<TEntity> :
          IRepositoryPublicAsyncDapper<TEntity> where TEntity : class, IBaseEntity
@@ -66,7 +66,7 @@ namespace Persistance.Repository.BaseRepository
             //    sql += " AND " + where;
             foreach (var filter in data.Filter)
             {
-                sql += $" And {filter.Property} Like N'%{filter.Value}%'";
+                sql += $" And {filter.Property} Like N'%{filter.Value}%' ";
             }
 
 
