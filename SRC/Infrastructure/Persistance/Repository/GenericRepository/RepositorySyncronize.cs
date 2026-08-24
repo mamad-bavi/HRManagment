@@ -1,8 +1,8 @@
 ﻿using Application.Contracts.GenericContract;
 using Application.Filters;
 using Application.Utilities.AutoMapperGeneric;
+using Application.Utilities.Common;
 using Azure;
-using Common.Utilities;
 using Dapper;
 using Domain.Entities.Base;
 using Microsoft.Data.SqlClient;

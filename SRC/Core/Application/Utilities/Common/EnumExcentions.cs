@@ -1,7 +1,8 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using Application.Utilities.Common;
+using System.ComponentModel.DataAnnotations;
 using System.Reflection;
 
-namespace Common.Utilities
+namespace Application.Utilities.Common
 {
     public static class EnumExtensions
     {

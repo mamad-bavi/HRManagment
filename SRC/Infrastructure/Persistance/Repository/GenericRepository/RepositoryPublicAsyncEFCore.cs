@@ -1,6 +1,6 @@
 ﻿using Application.Contracts.GenericContract;
 using Application.Filters;
-using Common.Utilities;
+using Application.Utilities.Common;
 using Domain.Entities.Base;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;

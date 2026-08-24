@@ -1,8 +1,9 @@
-﻿using System.Globalization;
+﻿using Application.Utilities.Common;
+using System.Globalization;
 using System.Security.Claims;
 using System.Security.Principal;
 
-namespace Common.Utilities
+namespace Persistance.Utilities.Common
 {
     public static class IdentityExtensions
     {
