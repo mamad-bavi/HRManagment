@@ -5,7 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace Application.FluentApi.Location
+namespace Persistance.FluentApi.Location
 {
     public class OrganizationFluentApi : IEntityTypeConfiguration<Organization>
     {
