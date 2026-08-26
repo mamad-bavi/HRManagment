@@ -1,9 +1,5 @@
 ﻿using Application.Filters;
 using Domain.Entities.Base;
-using Microsoft.EntityFrameworkCore;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace Application.Contracts.GenericContract
 {
@@ -15,6 +11,8 @@ namespace Application.Contracts.GenericContract
         Task<GreadData<TEntity>> GetByQueryAsync(CancellationToken cancellationToken, GreadData<TEntity> data);
         Task<GreadData<TEntity>> GetByQueryDeletedItemsAsync(CancellationToken cancellationToken, GreadData<TEntity> data);
         Task<GreadData<TEntity>> GetByRangIdQuerAsync(List<long> Ids);
+        Task<bool> AddByDapperAsync(TEntity entity);
+        Task<bool> UpdateByDapperAsync(TEntity entity);
 
     }
 }

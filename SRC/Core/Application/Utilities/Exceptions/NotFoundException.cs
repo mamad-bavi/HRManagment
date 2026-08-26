@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Application.Utilities.ApiResualtStatus;
+using System;
 
 namespace Application.Utilities.Exceptions
 {

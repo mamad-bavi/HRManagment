@@ -1,6 +1,5 @@
 ﻿using Application.Filters;
 using Domain.Entities.Base;
-using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq.Expressions;
@@ -11,7 +10,6 @@ namespace Application.Contracts.GenericContract
 {
     public interface IRepositorySyncronize<TEntity> where TEntity : class, IBaseEntity
     {
-        DbSet<TEntity> Entities { get; }
         IQueryable<TEntity> TableDeleted { get; }
         IQueryable<TEntity> TableNoTrackingDeleted { get; }
         IQueryable<TEntity> Table { get; }

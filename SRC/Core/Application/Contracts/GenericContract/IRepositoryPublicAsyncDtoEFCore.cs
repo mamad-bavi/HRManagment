@@ -1,9 +1,5 @@
 ﻿using Domain.Entities.Base;
-using Microsoft.EntityFrameworkCore;
-using System;
-using System.Collections.Generic;
 using System.Linq.Expressions;
-using System.Text;
 
 namespace Application.Contracts.GenericContract
 {

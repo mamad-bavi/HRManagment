@@ -4,7 +4,6 @@ using Application.Feaures.Location.Province.Requests.Queries;
 using Application.Filters;
 using Application.Utilities.AutoMapperGeneric;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 
 namespace Application.Feaures.Location.Province.Handlers.Queries
 {
