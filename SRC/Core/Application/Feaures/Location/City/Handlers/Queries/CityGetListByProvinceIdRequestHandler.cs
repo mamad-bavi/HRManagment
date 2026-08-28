@@ -1,4 +1,4 @@
-﻿using Application.Contracts.Location;
+﻿using Application.Contracts.Location.CityContract;
 using Application.DTOs.Location.CityDtos.QueryDtos;
 using Application.Feaures.Location.City.Requests.Queries;
 using Application.Filters;
@@ -12,9 +12,9 @@ namespace Application.Feaures.Location.City.Handlers.Queries
 {
     public class CityGetListByProvinceIdRequestHandler : IRequestHandler<CityGetListByProvinceIdRequest, GreadData<CityGetListByProvinceIdDto>>
     {
-        private readonly ICityRepository cityRepository;
+        private readonly ICityCreateRepository cityRepository;
 
-        public CityGetListByProvinceIdRequestHandler(ICityRepository cityRepository)
+        public CityGetListByProvinceIdRequestHandler(ICityCreateRepository cityRepository)
         {
             this.cityRepository = cityRepository;
         }

@@ -1,4 +1,4 @@
-﻿using Application.Contracts.Location;
+﻿using Application.Contracts.Location.CityContract;
 using Application.Feaures.Location.City.Requests.Commands;
 using MediatR;
 using System;
@@ -9,9 +9,9 @@ namespace Application.Feaures.Location.City.Handlers.Commands
 {
     public class CityDeleteCommandHandler : IRequestHandler<CityDeleteCommand, long>
     {
-        private readonly ICityRepository cityRepository;
+        private readonly ICityCreateRepository cityRepository;
 
-        public CityDeleteCommandHandler(ICityRepository cityRepository)
+        public CityDeleteCommandHandler(ICityCreateRepository cityRepository)
         {
             this.cityRepository = cityRepository;
         }

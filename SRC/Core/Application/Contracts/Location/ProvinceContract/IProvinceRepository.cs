@@ -4,9 +4,9 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace Application.Contracts.Location
+namespace Application.Contracts.Location.ProvinceContract
 {
-    public interface ICityRepository : IRepositoryPublicAsyncEFCore<City>
+    public interface IProvinceRepository: IRepositoryPublicAsyncEFCore<Province>
     {
 
     }
