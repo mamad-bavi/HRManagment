@@ -1,4 +1,4 @@
-﻿using Application.Contracts.Location;
+﻿using Application.Contracts.Location.OrganizationContract;
 using Application.Feaures.Location.Organization.Requests.Commands;
 using MediatR;
 using System;

@@ -6,7 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace Application.Contracts.Location
+namespace Application.Contracts.Location.OrganizationContract
 {
     public interface IOrganizationRepository : IRepositoryPublicAsyncEFCore<Organization>
     {

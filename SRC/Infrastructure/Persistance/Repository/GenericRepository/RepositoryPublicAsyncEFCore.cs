@@ -19,7 +19,6 @@ namespace Persistance.Repository.GenericRepository
     {
 
         protected readonly HRDbContext DbContext;
-        private readonly IConfiguration configuration;
         private IDbContextTransaction? _transaction;
 
         public DbSet<TEntity> Entities { get; }
@@ -33,10 +32,9 @@ namespace Persistance.Repository.GenericRepository
             Entities.Where(p => EF.Property<bool?>(p, "IsDeleted") != true).AsNoTracking();
 
 
-        public RepositoryPublicAsyncEFCore(HRDbContext dbContext, IConfiguration configuration)
+        public RepositoryPublicAsyncEFCore(HRDbContext dbContext)
         {
             DbContext = dbContext;
-            this.configuration = configuration;
             Entities = DbContext.Set<TEntity>();
         }
 

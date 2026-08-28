@@ -1,4 +1,4 @@
-﻿using Application.Contracts.Location;
+﻿using Application.Contracts.Location.ProvinceContract;
 using Application.DTOs.Location.ProvinceDtos.CommandDtos;
 using Application.Feaures.Location.Province.Requests.Commands;
 using Application.Utilities.AutoMapperGeneric;

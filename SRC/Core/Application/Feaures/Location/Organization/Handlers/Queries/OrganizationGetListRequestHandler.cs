@@ -1,4 +1,4 @@
-﻿using Application.Contracts.Location;
+﻿using Application.Contracts.Location.OrganizationContract;
 using Application.DTOs.Location.OrganizationDtos.QueryDtos;
 using Application.DTOs.Location.ProvinceDtos;
 using Application.Feaures.Location.Organization.Requests.Queries;

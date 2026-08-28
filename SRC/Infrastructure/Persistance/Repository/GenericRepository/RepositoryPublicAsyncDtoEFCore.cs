@@ -1,5 +1,6 @@
 ﻿using Application.Contracts.GenericContract;
 using Application.Utilities.AutoMapperGeneric;
+using AutoMapper;
 using Domain.Entities.Base;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -11,55 +12,94 @@ using System.Text;
 
 namespace Persistance.Repository.GenericRepository
 {
-    public class RepositoryPublicAsyncDtoEFCore<TEntity> :
+    public class RepositoryPublicAsyncDtoEFCore<TEntity, TDtoCreate,
+        TDtoUpdate, TDtoGetById, TDtoList> :
         RepositoryPublicAsyncEFCore<TEntity>,
-        IRepositoryPublicAsyncDtoEFCore<TEntity> where TEntity : class , 
+        IRepositoryPublicAsyncDtoEFCore<TEntity, TDtoCreate,
+        TDtoUpdate, TDtoGetById, TDtoList> where TEntity : class , 
         IBaseEntity
     {
-        public RepositoryPublicAsyncDtoEFCore(HRDbContext dbContext, IConfiguration configuration) : base(dbContext, configuration)
+        private readonly IMapper mapper;
+
+        public RepositoryPublicAsyncDtoEFCore(HRDbContext dbContext,IMapper mapper) : base(dbContext)
         {
+            this.mapper = mapper;
         }
 
-        public async Task<IEnumerable<TDto>> GetDtos<TDto>(CancellationToken cancellationToken)
+        public virtual async Task<IEnumerable<TDtoList>> GetDtos(CancellationToken cancellationToken)
         {
             var list = await TableNoTracking.ToListAsync(cancellationToken);
-            var dtoList = list.ConvertListObject<TDto, TEntity>();
+            var dtoList = list.ConvertListObject<TDtoList, TEntity>(mapper);
             return dtoList;
         }
 
-        public async Task<IEnumerable<TDto>> GetDtos<TDto>(
+        public virtual async Task<IEnumerable<TDtoList>> GetDtos(
             Expression<Func<TEntity, bool>> predicate,
             CancellationToken cancellationToken)
         {
             var list = await TableNoTracking.Where(predicate)
                 .ToListAsync(cancellationToken);
 
-            var dtoList = list.ConvertListObject<TDto, TEntity>();
+            var dtoList = list.ConvertListObject<TDtoList, TEntity>(mapper);
             return dtoList;
         }
 
-        public async Task AddAsync<TDto>(TDto dto, CancellationToken cancellationToken, bool saveNow = true)
+        public virtual async Task AddDtoAsync(TDtoCreate dto, CancellationToken cancellationToken, bool saveNow = true)
         {
-            var entity = dto.ConvertObject<TEntity, TDto>();
+            var entity = dto.ConvertObject<TEntity, TDtoCreate>(mapper);
             await base.AddAsync(entity, cancellationToken, saveNow);
 
         }
 
 
-        public Task UpdateAsync<TDto>(TDto dto, CancellationToken cancellationToken, bool saveNow = true)
+        public virtual Task UpdateDtoAsync(TDtoUpdate dto, CancellationToken cancellationToken, bool saveNow = true)
         {
             throw new NotImplementedException();
         }
 
-        public async Task<TDto> GetDtoById<TDto, TKey>(TKey Id, CancellationToken cancellationToken)
+        public virtual async Task<TDtoGetById> GetDtoById<TKey>(TKey Id, CancellationToken cancellationToken)
         {
             var Item = await TableNoTracking.FirstOrDefaultAsync(e =>
             EF.Property<TKey>(e, "Id").Equals(Id), cancellationToken);
-            var dto = Item.ConvertObject<TDto, TEntity>();
+            var dto = Item.ConvertObject<TDtoGetById, TEntity>(mapper);
             return dto;
         }
 
-
-
     }
+
+    public class RepositoryPublicAsyncDtoEFCore<TEntity, TDtoCreate,
+    TDtoUpdate, TDtoGetById> : RepositoryPublicAsyncDtoEFCore<TEntity, TDtoCreate,
+        TDtoUpdate, TDtoGetById, TDtoGetById>,
+        IRepositoryPublicAsyncDtoEFCore<TEntity, TDtoCreate,
+        TDtoUpdate, TDtoGetById> where TEntity : class,
+        IBaseEntity
+    {
+        public RepositoryPublicAsyncDtoEFCore(HRDbContext dbContext, IMapper mapper) : base(dbContext, mapper)
+        {
+        }
+    }
+
+    public class RepositoryPublicAsyncDtoEFCore<TEntity, TDtoCreate,
+    TDtoGetById> : RepositoryPublicAsyncDtoEFCore<TEntity, TDtoCreate,
+        TDtoCreate, TDtoGetById>,
+        IRepositoryPublicAsyncDtoEFCore<TEntity, TDtoCreate,
+        TDtoGetById> where TEntity : class,
+        IBaseEntity
+    {
+        public RepositoryPublicAsyncDtoEFCore(HRDbContext dbContext, IMapper mapper) : base(dbContext, mapper)
+        {
+        }
+    }
+
+    public class RepositoryPublicAsyncDtoEFCore<TEntity, TDto> : 
+        RepositoryPublicAsyncDtoEFCore<TEntity, TDto, TDto>,
+        IRepositoryPublicAsyncDtoEFCore<TEntity, TDto> where TEntity : class,
+        IBaseEntity
+    {
+        public RepositoryPublicAsyncDtoEFCore(HRDbContext dbContext, IMapper mapper) : base(dbContext, mapper)
+        {
+        }
+        
+    }
+
 }

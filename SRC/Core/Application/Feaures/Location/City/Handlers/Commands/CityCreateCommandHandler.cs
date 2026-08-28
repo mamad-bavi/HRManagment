@@ -1,4 +1,4 @@
-﻿using Application.Contracts.Location;
+﻿using Application.Contracts.Location.CityContract;
 using Application.DTOs.Location.CityDtos.CommandDtos;
 using Application.Feaures.Location.City.Requests.Commands;
 using Application.Utilities.AutoMapperGeneric;
@@ -11,9 +11,9 @@ namespace Application.Feaures.Location.City.Handlers.Commands
 {
     public class CityCreateCommandHandler : IRequestHandler<CityCreateCommand, Unit>
     {
-        private readonly ICityRepository cityRepository;
+        private readonly ICityCreateRepository cityRepository;
 
-        public CityCreateCommandHandler(ICityRepository cityRepository)
+        public CityCreateCommandHandler(ICityCreateRepository cityRepository)
         {
             this.cityRepository = cityRepository;
         }

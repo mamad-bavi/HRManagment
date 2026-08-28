@@ -1,4 +1,4 @@
-﻿using Application.Contracts.Location;
+﻿using Application.Contracts.Location.OrganizationContract;
 using Application.DTOs.Location.OrganizationDtos.CommandDtos;
 using Application.Feaures.Location.Organization.Requests.Commands;
 using Application.Utilities.AutoMapperGeneric;
