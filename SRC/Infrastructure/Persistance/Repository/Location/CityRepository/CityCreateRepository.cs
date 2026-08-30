@@ -2,12 +2,8 @@
 using Application.DTOs.Location.CityDtos.CommandDtos;
 using AutoMapper;
 using Domain.Entities.Location;
-using Microsoft.Extensions.Configuration;
-using Persistance.Context;
-using Persistance.Repository.GenericRepository;
-using System;
-using System.Collections.Generic;
-using System.Text;
+using GenericRepositories.Context;
+using GenericRepositories.Repository.GenericRepository;
 
 namespace Persistance.Repository.Location.CityRepository
 {
@@ -16,8 +12,9 @@ namespace Persistance.Repository.Location.CityRepository
         ICityCreateRepository
         
     {
-        public CityCreateRepository(HRDbContext dbContext, IMapper mapper) : 
-            base(dbContext, mapper)
+        public CityCreateRepository(GenericCommandDbContext dbCommandContext,
+            GenericQueryDbContext dbQueryContext, IMapper mapper) :
+            base(dbCommandContext, dbQueryContext, mapper)
         {
         }
 

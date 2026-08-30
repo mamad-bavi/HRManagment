@@ -1,17 +1,15 @@
 ﻿using Application.Contracts.Location.OrganizationContract;
 using Application.DTOs.Location.OrganizationDtos.QueryDtos;
-using Application.DTOs.Location.ProvinceDtos;
 using Application.Feaures.Location.Organization.Requests.Queries;
-using Application.Filters;
 using Application.Utilities.AutoMapperGeneric;
+using GenericRepositories.Filters;
 using MediatR;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace Application.Feaures.Location.Organization.Handlers.Queries
 {
-    public class OrganizationGetListRequestHandler : IRequestHandler<OrganizationGetListRequest, GreadData<OrganizationGetListDto>>
+    public class OrganizationGetListRequestHandler : 
+        IRequestHandler<OrganizationGetListRequest, 
+            GreadData<OrganizationGetListDto>>
     {
         private readonly IOrganizationRepository organizationRepository;
 

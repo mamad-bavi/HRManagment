@@ -1,10 +1,6 @@
-﻿using Application.Contracts.GenericContract;
-using Application.Filters;
-using Domain.Entities.Location;
-using MediatR;
-using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using Domain.Entities.Location;
+using GenericRepositories.Contracts.GenericContract;
+using GenericRepositories.Filters;
 
 namespace Application.Contracts.Location.OrganizationContract
 {

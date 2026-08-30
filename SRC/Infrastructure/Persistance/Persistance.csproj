@@ -8,8 +8,11 @@
 
   <ItemGroup>
     <Compile Remove="Contract\**" />
+    <Compile Remove="Repository\GenericRepository\**" />
     <EmbeddedResource Remove="Contract\**" />
+    <EmbeddedResource Remove="Repository\GenericRepository\**" />
     <None Remove="Contract\**" />
+    <None Remove="Repository\GenericRepository\**" />
   </ItemGroup>
 
   <ItemGroup>
@@ -18,6 +21,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\..\Framworks\GenericRepositories\GenericRepositories.csproj" />
     <ProjectReference Include="..\..\Core\Application\Application.csproj" />
   </ItemGroup>
 

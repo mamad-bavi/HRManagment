@@ -7,7 +7,9 @@ using Microsoft.Extensions.Configuration;
 using Persistance.Context;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Linq.Expressions;
+using System.Reflection;
 using System.Text;
 
 namespace Persistance.Repository.GenericRepository
@@ -26,12 +28,12 @@ namespace Persistance.Repository.GenericRepository
             this.mapper = mapper;
         }
 
-        public virtual async Task<IEnumerable<TDtoList>> GetDtos(CancellationToken cancellationToken)
-        {
-            var list = await TableNoTracking.ToListAsync(cancellationToken);
-            var dtoList = list.ConvertListObject<TDtoList, TEntity>(mapper);
-            return dtoList;
-        }
+        //public virtual async Task<IEnumerable<TDtoList>> GetDtos(CancellationToken cancellationToken)
+        //{
+        //    var list = await TableNoTracking.ToListAsync(cancellationToken);
+        //    var dtoList = list.ConvertListObject<TDtoList, TEntity>(mapper);
+        //    return dtoList;
+        //}
 
         public virtual async Task<IEnumerable<TDtoList>> GetDtos(
             Expression<Func<TEntity, bool>> predicate,
@@ -52,15 +54,20 @@ namespace Persistance.Repository.GenericRepository
         }
 
 
-        public virtual Task UpdateDtoAsync(TDtoUpdate dto, CancellationToken cancellationToken, bool saveNow = true)
+        public virtual async Task UpdateDtoAsync(TDtoUpdate dto, CancellationToken cancellationToken, bool saveNow = true)
         {
-            throw new NotImplementedException();
+            var entity = dto.ConvertObject<TEntity, TDtoUpdate>(mapper);
+            await base.UpdateAsync(entity, cancellationToken, saveNow);
         }
 
         public virtual async Task<TDtoGetById> GetDtoById<TKey>(TKey Id, CancellationToken cancellationToken)
         {
+            var idProperty = typeof(TEntity).GetProperties()
+                .Where(p => p.GetCustomAttribute<KeyAttribute>() != null)
+                .Select(p => p.Name)
+                .FirstOrDefault();
             var Item = await TableNoTracking.FirstOrDefaultAsync(e =>
-            EF.Property<TKey>(e, "Id").Equals(Id), cancellationToken);
+            EF.Property<TKey>(e, idProperty).Equals(Id), cancellationToken);
             var dto = Item.ConvertObject<TDtoGetById, TEntity>(mapper);
             return dto;
         }

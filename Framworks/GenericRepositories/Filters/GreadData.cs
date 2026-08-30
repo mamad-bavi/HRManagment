@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Application.Filters
+namespace GenericRepositories.Filters
 {
     public class GreadData<T> where T : class
     {

@@ -6,4 +6,8 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Framworks\GenericRepositories\GenericRepositories.csproj" />
+  </ItemGroup>
+
 </Project>

@@ -7,7 +7,7 @@ using System.Text;
 
 namespace Persistance.FluentApi.Location
 {
-    public class OrganizationFluentApi : IEntityTypeConfiguration<Organization>
+    public class OrganizationFluentApi : IBaseTypeConfiguration<Organization>
     {
         public void Configure(EntityTypeBuilder<Organization> builder)
         {

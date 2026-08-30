@@ -9,7 +9,7 @@ using System.Text;
 
 namespace Persistance.FluentApi.Location
 {
-    public class CityFluentApi : IEntityTypeConfiguration<City>
+    public class CityFluentApi : IBaseTypeConfiguration<City>
     {
         public void Configure(EntityTypeBuilder<City> builder)
         {
