@@ -1,4 +1,7 @@
 <Solution>
+  <Folder Name="/Framworks/">
+    <Project Path="Framworks/GenericRepositories/GenericRepositories.csproj" Id="cdc36dc0-7de3-486b-b007-e550797bacc3" />
+  </Folder>
   <Folder Name="/SRC/" />
   <Folder Name="/SRC/API/" />
   <Folder Name="/SRC/Core/">

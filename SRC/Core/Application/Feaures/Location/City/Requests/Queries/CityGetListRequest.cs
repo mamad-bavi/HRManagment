@@ -1,9 +1,6 @@
 ﻿using Application.DTOs.Location.CityDtos.QueryDtos;
-using Application.Filters;
+using GenericRepositories.Filters;
 using MediatR;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace Application.Feaures.Location.City.Requests.Queries
 {

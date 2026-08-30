@@ -1,15 +1,13 @@
-﻿using System;
+﻿using GenericRepositories.ParentEntities;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
 namespace Domain.Entities.Base
 {
 
-    public interface IBaseEntity
-    {
-    }
 
-    public abstract class BaseEntity<TKey,TDateProperty> : IBaseEntity
+    public abstract class BaseEntity<TKey,TDateProperty> : IBaseEntity<TKey,TDateProperty>
     {
         public TKey Id { get; set; }
 

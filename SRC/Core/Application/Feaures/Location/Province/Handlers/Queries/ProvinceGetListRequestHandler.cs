@@ -1,8 +1,8 @@
 ﻿using Application.Contracts.Location.ProvinceContract;
 using Application.DTOs.Location.ProvinceDtos.QueryDtos;
 using Application.Feaures.Location.Province.Requests.Queries;
-using Application.Filters;
 using Application.Utilities.AutoMapperGeneric;
+using GenericRepositories.Filters;
 using MediatR;
 
 namespace Application.Feaures.Location.Province.Handlers.Queries
@@ -25,7 +25,8 @@ namespace Application.Feaures.Location.Province.Handlers.Queries
                 PageCount = request.GreadData.PageCount,
                 Count = request.GreadData.Count,
             };
-            var resualt = await provinceRepository.GetListAsync(cancellationToken, gread);
+            var resualt = await provinceRepository.GetListAsync(cancellationToken,
+                gread);
                 
 
             GreadData<ProvinceGetListDto> greadData = new();

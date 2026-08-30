@@ -1,8 +1,5 @@
-﻿using Application.Contracts.GenericContract;
-using Domain.Entities.Location;
-using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using Domain.Entities.Location;
+using GenericRepositories.Contracts.GenericContract;
 
 namespace Application.Contracts.Location.ProvinceContract
 {
