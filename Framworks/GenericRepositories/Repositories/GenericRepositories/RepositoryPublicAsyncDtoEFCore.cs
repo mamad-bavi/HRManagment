@@ -17,11 +17,13 @@ namespace GenericRepositories.Repository.GenericRepository
         TDtoUpdate, TDtoGetById, TDtoList> where TEntity : class ,IBaseEntity
         
     {
+        private readonly GenericCommandDbContext DbCommandContext;
         private readonly IMapper mapper;
 
         public RepositoryPublicAsyncDtoEFCore(GenericCommandDbContext dbCommandContext,
             GenericQueryDbContext dbQueryContext,IMapper mapper) : base(dbCommandContext,dbQueryContext)
         {
+            DbCommandContext = dbCommandContext;
             this.mapper = mapper;
         }
 
@@ -53,10 +55,12 @@ namespace GenericRepositories.Repository.GenericRepository
 
         public virtual async Task<TDtoGetById> GetDtoById<TKey>(TKey Id, CancellationToken cancellationToken)
         {
-            var idProperty = typeof(TEntity).GetProperties()
-                .Where(p => p.GetCustomAttribute<KeyAttribute>() != null)
-                .Select(p => p.Name)
-                .FirstOrDefault();
+            var entityType = DbCommandContext.Model.FindEntityType(typeof(TEntity));
+
+            var key = entityType?.FindPrimaryKey();
+
+            var idProperty = key?.Properties.FirstOrDefault()?.Name;
+
             var Item = await TableNoTracking.FirstOrDefaultAsync(e =>
             EF.Property<TKey>(e, idProperty).Equals(Id), cancellationToken);
             var dto = Item.ConvertObject<TDtoGetById, TEntity>(mapper);

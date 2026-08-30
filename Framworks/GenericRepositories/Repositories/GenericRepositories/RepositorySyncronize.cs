@@ -45,10 +45,12 @@ namespace GenericRepositories.Repository.GenericRepository
         #region Sync Methods
         public TEntity GetByIdDeleted(params object[] ids)
         {
-            var idProperty = typeof(TEntity).GetProperties()
-                .Where(p => p.GetCustomAttribute<KeyAttribute>() != null)
-                .Select(p => p.Name)
-                .FirstOrDefault();
+            var entityType = DbCommandContext.Model.FindEntityType(typeof(TEntity));
+
+            var key = entityType?.FindPrimaryKey();
+
+            var idProperty = key?.Properties.FirstOrDefault()?.Name;
+
             return TableNoTrackingDeleted
                 .FirstOrDefault(p =>
                 EF.Property<long>(p, idProperty) == (long)ids[0]);
@@ -56,10 +58,12 @@ namespace GenericRepositories.Repository.GenericRepository
 
         public virtual TEntity GetById(params object[] ids)
         {
-            var idProperty = typeof(TEntity).GetProperties()
-                .Where(p => p.GetCustomAttribute<KeyAttribute>() != null)
-                .Select(p => p.Name)
-                .FirstOrDefault();
+            var entityType = DbCommandContext.Model.FindEntityType(typeof(TEntity));
+
+            var key = entityType?.FindPrimaryKey();
+
+            var idProperty = key?.Properties.FirstOrDefault()?.Name;
+
             return TableNoTracking
                 .FirstOrDefault(p =>
                 EF.Property<long>(p, idProperty) == (long)ids[0]);

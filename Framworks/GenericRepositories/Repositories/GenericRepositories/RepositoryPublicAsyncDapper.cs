@@ -1,9 +1,11 @@
 ﻿using Dapper;
+using GenericRepositories.Context;
 using GenericRepositories.Contracts.GenericContract;
 using GenericRepositories.Filters;
 using GenericRepositories.ParentEntities;
 using GenericRepositories.Settings;
 using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations;
 using System.Data;
 using System.Reflection;
@@ -14,6 +16,7 @@ namespace GenericRepositories.Repository.GenericRepository
         IRepositoryPublicAsyncDapper<TEntity>
         where TEntity : class , IBaseEntity
     {
+        private readonly GenericCommandDbContext DbCommandContext;
         private readonly DbConnectionSetting setting;
 
         private readonly string TableName =
@@ -27,8 +30,10 @@ namespace GenericRepositories.Repository.GenericRepository
 
 
         public RepositoryPublicAsyncDapper(
+            GenericCommandDbContext dbCommandContext,
             DbConnectionSetting setting)
         {
+            DbCommandContext = dbCommandContext;
             this.setting = setting;
         }
 
@@ -38,11 +43,17 @@ namespace GenericRepositories.Repository.GenericRepository
         public async Task<TEntity?> GetByIdQueryAsync(
             long id)
         {
+            var entityType = DbCommandContext.Model.FindEntityType(typeof(TEntity));
+
+            var key = entityType?.FindPrimaryKey();
+
+            var idProperty = key?.Properties.FirstOrDefault()?.Name;
+
             var sql = $"""
                 SELECT *
                 FROM [{TableName}]
                 WHERE IsDeleted = 0
-                  AND Id = @Id
+                  AND {idProperty} = @Id
                 """;
 
             using var connection =
@@ -50,7 +61,7 @@ namespace GenericRepositories.Repository.GenericRepository
 
             return await connection.QueryFirstOrDefaultAsync<TEntity>(
                 sql,
-                new { Id = id });
+                new { id });
         }
 
         #endregion
@@ -69,10 +80,12 @@ namespace GenericRepositories.Repository.GenericRepository
                 return data;
             }
 
-            var idProperty = typeof(TEntity).GetProperties()
-               .Where(p => p.GetCustomAttribute<KeyAttribute>() != null)
-               .Select(p => p.Name)
-               .FirstOrDefault();
+            var entityType = DbCommandContext.Model.FindEntityType(typeof(TEntity));
+
+            var key = entityType?.FindPrimaryKey();
+
+            var idProperty = key?.Properties.FirstOrDefault()?.Name;
+
 
             var sql = $"""
                 SELECT *
@@ -134,10 +147,12 @@ namespace GenericRepositories.Repository.GenericRepository
         {
             var data = new GreadData<TEntity>();
 
-            var idProperty = typeof(TEntity).GetProperties()
-               .Where(p => p.GetCustomAttribute<KeyAttribute>() != null)
-               .Select(p => p.Name)
-               .FirstOrDefault();
+            var entityType = DbCommandContext.Model.FindEntityType(typeof(TEntity));
+
+            var key = entityType?.FindPrimaryKey();
+
+            var idProperty = key?.Properties.FirstOrDefault()?.Name;
+
 
             var sql = $"""
                 SELECT *
@@ -152,7 +167,7 @@ namespace GenericRepositories.Repository.GenericRepository
             data.Entity =
                 await connection.QueryFirstOrDefaultAsync<TEntity>(
                     sql,
-                    new { Id = id });
+                    new { id });
 
             return data;
         }
@@ -165,10 +180,12 @@ namespace GenericRepositories.Repository.GenericRepository
         public async Task<bool> AddByDapperAsync(
             TEntity entity)
         {
-            var idProperty = typeof(TEntity).GetProperties()
-               .Where(p => p.GetCustomAttribute<KeyAttribute>() != null)
-               .Select(p => p.Name)
-               .FirstOrDefault();
+            var entityType = DbCommandContext.Model.FindEntityType(typeof(TEntity));
+
+            var key = entityType?.FindPrimaryKey();
+
+            var idProperty = key?.Properties.FirstOrDefault()?.Name;
+
 
             var properties = typeof(TEntity)
                 .GetProperties()
@@ -209,10 +226,12 @@ namespace GenericRepositories.Repository.GenericRepository
         public async Task<bool> UpdateByDapperAsync(
             TEntity entity)
         {
-            var idProperty = typeof(TEntity).GetProperties()
-               .Where(p => p.GetCustomAttribute<KeyAttribute>() != null)
-               .Select(p => p.Name)
-               .FirstOrDefault();
+            var entityType = DbCommandContext.Model.FindEntityType(typeof(TEntity));
+
+            var key = entityType?.FindPrimaryKey();
+
+            var idProperty = key?.Properties.FirstOrDefault()?.Name;
+
             var properties = typeof(TEntity)
                 .GetProperties()
                 .Where(p => p.Name != idProperty)
@@ -247,10 +266,12 @@ namespace GenericRepositories.Repository.GenericRepository
 
         public async Task<bool> DeleteAsync(long id)
         {
-            var idProperty = typeof(TEntity).GetProperties()
-               .Where(p => p.GetCustomAttribute<KeyAttribute>() != null)
-               .Select(p => p.Name)
-               .FirstOrDefault();
+            var entityType = DbCommandContext.Model.FindEntityType(typeof(TEntity));
+
+            var key = entityType?.FindPrimaryKey();
+
+            var idProperty = key?.Properties.FirstOrDefault()?.Name;
+
             var sql = $"""
                 UPDATE [{TableName}]
                 SET IsDeleted = 1
@@ -276,10 +297,12 @@ namespace GenericRepositories.Repository.GenericRepository
 
         public async Task<bool> RestoreAsync(long id)
         {
-            var idProperty = typeof(TEntity).GetProperties()
-               .Where(p => p.GetCustomAttribute<KeyAttribute>() != null)
-               .Select(p => p.Name)
-               .FirstOrDefault();
+            var entityType = DbCommandContext.Model.FindEntityType(typeof(TEntity));
+
+            var key = entityType?.FindPrimaryKey();
+
+            var idProperty = key?.Properties.FirstOrDefault()?.Name;
+
             var sql = $"""
                 UPDATE [{TableName}]
                 SET IsDeleted = 0
@@ -305,10 +328,12 @@ namespace GenericRepositories.Repository.GenericRepository
 
         public async Task<bool> ExistsAsync(long id)
         {
-            var idProperty = typeof(TEntity).GetProperties()
-               .Where(p => p.GetCustomAttribute<KeyAttribute>() != null)
-               .Select(p => p.Name)
-               .FirstOrDefault();
+            var entityType = DbCommandContext.Model.FindEntityType(typeof(TEntity));
+
+            var key = entityType?.FindPrimaryKey();
+
+            var idProperty = key?.Properties.FirstOrDefault()?.Name;
+
             var sql = $"""
                 SELECT CAST(
                     CASE
@@ -368,10 +393,12 @@ namespace GenericRepositories.Repository.GenericRepository
             bool isDeleted,
             CancellationToken cancellationToken)
         {
-            var idProperty = typeof(TEntity).GetProperties()
-               .Where(p => p.GetCustomAttribute<KeyAttribute>() != null)
-               .Select(p => p.Name)
-               .FirstOrDefault();
+            var entityType = DbCommandContext.Model.FindEntityType(typeof(TEntity));
+
+            var key = entityType?.FindPrimaryKey();
+
+            var idProperty = key?.Properties.FirstOrDefault()?.Name;
+
 
             if (data.Page <= 0)
                 data.Page = 1;

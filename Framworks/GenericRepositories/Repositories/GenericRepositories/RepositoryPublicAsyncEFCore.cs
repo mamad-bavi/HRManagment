@@ -46,10 +46,12 @@ namespace GenericRepositories.Repository.GenericRepository
 
         public virtual async Task<TEntity> GetByIdDeletedAsync(CancellationToken cancellationToken, params object[] ids)
         {
-            var idProperty = typeof(TEntity).GetProperties()
-               .Where(p => p.GetCustomAttribute<KeyAttribute>() != null)
-               .Select(p => p.Name)
-               .FirstOrDefault();
+            var entityType = DbCommandContext.Model.FindEntityType(typeof(TEntity));
+
+            var key = entityType?.FindPrimaryKey();
+
+            var idProperty = key?.Properties.FirstOrDefault()?.Name;
+
 
             return await TableNoTrackingDeleted
                 .FirstOrDefaultAsync(p =>
@@ -58,10 +60,12 @@ namespace GenericRepositories.Repository.GenericRepository
 
         public virtual async Task<TEntity> GetByIdAsync(CancellationToken cancellationToken, params object[] ids)
         {
-            var idProperty = typeof(TEntity).GetProperties()
-               .Where(p => p.GetCustomAttribute<KeyAttribute>() != null)
-               .Select(p => p.Name)
-               .FirstOrDefault();
+            var entityType = DbCommandContext.Model.FindEntityType(typeof(TEntity));
+
+            var key = entityType?.FindPrimaryKey();
+
+            var idProperty = key?.Properties.FirstOrDefault()?.Name;
+
 
             return await TableNoTracking
                 .FirstOrDefaultAsync(p =>
