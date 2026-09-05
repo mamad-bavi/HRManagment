@@ -4,6 +4,7 @@ namespace GenericRepositories.Settings
 {
     public class AssembliesSetting
     {
-        public Assembly[] Assemblies { get; set; } = [];
+        public Assembly[] EntitiesAssemblies { get; set; } = [];
+        public Assembly[] EntitiesConfigurationAssemblies { get; set; } = [];
     }
 }

@@ -1,6 +1,6 @@
 ﻿using AutoMapper;
 using GenericRepositories.Context;
-using GenericRepositories.Contracts.GenericContract;
+using GenericRepositories.Contracts.Generic;
 using GenericRepositories.ParentEntities;
 using GenericRepositories.Utilities;
 using Microsoft.EntityFrameworkCore;
@@ -8,7 +8,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Linq.Expressions;
 using System.Reflection;
 
-namespace GenericRepositories.Repository.GenericRepository
+namespace GenericRepositories.Repositories.Generic
 {
     public class RepositoryPublicAsyncDtoEFCore<TEntity, TDtoCreate,
         TDtoUpdate, TDtoGetById, TDtoList> :

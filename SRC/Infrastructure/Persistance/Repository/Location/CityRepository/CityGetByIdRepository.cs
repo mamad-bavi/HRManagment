@@ -3,7 +3,7 @@ using Application.DTOs.Location.CityDtos.QueryDtos;
 using AutoMapper;
 using Domain.Entities.Location;
 using GenericRepositories.Context;
-using GenericRepositories.Repository.GenericRepository;
+using GenericRepositories.Repositories.Generic;
 
 namespace Persistance.Repository.Location.CityRepository
 {

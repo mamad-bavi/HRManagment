@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore.Metadata;
 using Pluralize.NET;
 using System.Reflection;
 
-namespace GenericRepositories.Utilities.Common
+namespace GenericRepositories.Utilities
 {
     public static class ModelBuilderExtensions
     {

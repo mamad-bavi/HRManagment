@@ -8,11 +8,15 @@ using System.Text;
 
 namespace Application.FluentValidation.Location.City
 {
-    public class CityCreateDtoValidation : AbstractValidator<CityCreateDto>
+    public class CityUpdateDtoValidation : AbstractValidator<CityUpdateDto>
     {
-        public CityCreateDtoValidation(IProvinceRepository provinceRepository)
+        public CityUpdateDtoValidation(IProvinceRepository provinceRepository)
         {
             Include(new CityParentValidator(provinceRepository));
+
+            RuleFor(p => p.Id)
+                .NotNull()
+                .WithMessage("{PropertyName} cann't be null");
         }
     }
 }

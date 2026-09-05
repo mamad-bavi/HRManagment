@@ -1,9 +1,8 @@
-﻿using Application.Filters;
-using Domain.Entities.Base;
+﻿using GenericRepositories.Filters;
 
-namespace Application.Contracts.GenericContract
+namespace GenericRepositories.Contracts.Generic
 {
-    public interface IRepositoryPublicAsyncDapper<TEntity> where TEntity : class,IBaseEntity
+    public interface IRepositoryPublicAsyncDapper<TEntity> where TEntity : class
     {
         
         Task<TEntity> GetByIdQueryAsync(long Id);

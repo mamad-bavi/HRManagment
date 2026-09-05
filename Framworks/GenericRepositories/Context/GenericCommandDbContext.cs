@@ -1,5 +1,6 @@
 ﻿using GenericRepositories.ParentEntities;
-using GenericRepositories.Utilities.Common;
+using GenericRepositories.Settings;
+using GenericRepositories.Utilities;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
@@ -10,13 +11,13 @@ namespace GenericRepositories.Context
 {
     public class GenericCommandDbContext : DbContext
     {
-        private readonly Assembly[] _assemblies;
+        private readonly AssembliesSetting assembliesSetting;
 
         public GenericCommandDbContext(DbContextOptions<GenericCommandDbContext> options,
-            params Assembly[] assemblies)
+            AssembliesSetting assembliesSetting)
             : base(options)
         {
-            _assemblies = assemblies;
+            this.assembliesSetting = assembliesSetting;
         }
 
 
@@ -24,11 +25,15 @@ namespace GenericRepositories.Context
         {
             base.OnModelCreating(modelBuilder);
 
-            foreach (var assembly in _assemblies)
+            foreach (var assemblyEntities in assembliesSetting.EntitiesAssemblies)
             {
-                modelBuilder.RegisterAllEntities<IBaseEntity>(assembly);
-                modelBuilder.RegisterEntityTypeConfiguration(assembly);
+                modelBuilder.RegisterAllEntities<IBaseEntity>(assemblyEntities);
             }
+            foreach (var assemblyConfiguration in assembliesSetting.EntitiesConfigurationAssemblies)
+            {
+                modelBuilder.RegisterEntityTypeConfiguration(assemblyConfiguration);
+            }
+
 
             modelBuilder.AddRestrictDeleteBehaviorConvention();
             modelBuilder.AddSequentialGuidForIdConvention();

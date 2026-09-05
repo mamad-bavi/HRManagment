@@ -1,6 +1,6 @@
 ﻿using Dapper;
 using GenericRepositories.Context;
-using GenericRepositories.Contracts.GenericContract;
+using GenericRepositories.Contracts.Generic;
 using GenericRepositories.Filters;
 using GenericRepositories.ParentEntities;
 using GenericRepositories.Settings;
@@ -10,7 +10,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Data;
 using System.Reflection;
 
-namespace GenericRepositories.Repository.GenericRepository
+namespace GenericRepositories.Repositories.Generic
 {
     public class RepositoryPublicAsyncDapper<TEntity> :
         IRepositoryPublicAsyncDapper<TEntity>

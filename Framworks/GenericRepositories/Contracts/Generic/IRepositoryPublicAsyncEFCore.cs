@@ -1,11 +1,10 @@
-﻿using Application.Filters;
-using Domain.Entities.Base;
+﻿using GenericRepositories.Filters;
 using System.Linq.Expressions;
 
-namespace Application.Contracts.GenericContract
+namespace GenericRepositories.Contracts.Generic
 {
     public interface IRepositoryPublicAsyncEFCore<TEntity> where TEntity :
-        class, IBaseEntity
+        class
     {
         IQueryable<TEntity> TableDeleted { get; }
         IQueryable<TEntity> TableNoTrackingDeleted { get; }

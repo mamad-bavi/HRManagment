@@ -1,5 +1,5 @@
 ﻿using Domain.Entities.Location;
-using GenericRepositories.Contracts.GenericContract;
+using GenericRepositories.Contracts.Generic;
 using GenericRepositories.Filters;
 
 namespace Application.Contracts.Location.OrganizationContract
