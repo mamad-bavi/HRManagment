@@ -1,7 +1,7 @@
 ﻿
 using GenericRepositories.Context;
-using GenericRepositories.Contracts.GenericContract;
-using GenericRepositories.Repository.GenericRepository;
+using GenericRepositories.Contracts.Generic;
+using GenericRepositories.Repositories.Generic;
 using GenericRepositories.Settings;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -15,19 +15,20 @@ namespace GenericRepositories.Configurations
     public static class GenericDbContext
     {
         public static void AddGenericConfigurations(this IServiceCollection services,
-            DbConnectionSetting setting, params Assembly[] assemblies)
+            DbConnectionSetting setting, AssembliesSetting assemblies)
         {
             services.AddGenericDbContex(setting, assemblies);
             services.AddLifeCycles();
         }
 
         private static void AddGenericDbContex(this IServiceCollection services,
-            DbConnectionSetting setting, params Assembly[] assemblies)
+            DbConnectionSetting setting, AssembliesSetting assemblies)
         {
 
             services.AddSingleton(new AssembliesSetting
             {
-                Assemblies = assemblies
+                EntitiesAssemblies = assemblies.EntitiesAssemblies,
+                EntitiesConfigurationAssemblies = assemblies.EntitiesConfigurationAssemblies
             });
 
 

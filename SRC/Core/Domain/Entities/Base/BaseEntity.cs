@@ -18,6 +18,7 @@ namespace Domain.Entities.Base
         public TDateProperty DeletedDate { get; set; }
         public TKey? DeletedUserId { get; set; }
         public bool? IsDeleted { get; set; }
+        public byte[] RowVersion { get; set; }
     }
 
     public abstract class BaseEntity<TDateProperty> : BaseEntity<long, TDateProperty>

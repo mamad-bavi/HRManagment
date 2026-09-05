@@ -15,7 +15,10 @@ namespace Persistance.ConfigurationServices
         public static void AddConfigurationServices(this IServiceCollection services,
             DbConnectionSetting setting)
         {
-            Assembly[] assemblies = [typeof(BaseEntity).Assembly,typeof(IBaseTypeConfiguration<>).Assembly];
+            AssembliesSetting assemblies = new();
+            assemblies.EntitiesAssemblies = [typeof(BaseEntity).Assembly];
+            assemblies.EntitiesConfigurationAssemblies = 
+                [typeof(IBaseTypeConfiguration<>).Assembly];
             services.AddGenericConfigurations(setting, assemblies);
         }
     }

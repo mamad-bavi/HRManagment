@@ -1,24 +1,24 @@
 ﻿using GenericRepositories.Context;
-using GenericRepositories.Contracts.GenericContract;
+using GenericRepositories.Contracts.Generic;
+using GenericRepositories.Filters;
 using GenericRepositories.ParentEntities;
 using GenericRepositories.Utilities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
-using Microsoft.Extensions.Configuration;
 using System.ComponentModel.DataAnnotations;
 using System.Linq.Expressions;
 using System.Reflection;
 
-namespace GenericRepositories.Repository.GenericRepository
+namespace GenericRepositories.Repositories.Generic
 {
-    public class RepositorySyncronize<TEntity> : 
-        IRepositorySyncronize<TEntity> where TEntity : class, 
+    public class RepositoryPublicAsyncEFCore<TEntity> :
+        IRepositoryPublicAsyncEFCore<TEntity> where TEntity : class, 
         IBaseEntity
     {
+
         private readonly GenericCommandDbContext DbCommandContext;
         private readonly GenericQueryDbContext DbQueryContext;
         private IDbContextTransaction? _transaction;
-
 
         public DbSet<TEntity> EntitiesCommand { get; }
         public DbSet<TEntity> EntitiesQuery { get; }
@@ -31,19 +31,20 @@ namespace GenericRepositories.Repository.GenericRepository
         public virtual IQueryable<TEntity> TableNoTracking =>
             EntitiesQuery.Where(p => EF.Property<bool?>(p, "IsDeleted") != true).AsNoTracking();
 
-        public RepositorySyncronize(GenericCommandDbContext dbCommandContext,
-            GenericQueryDbContext dbQueryContext,
-            IConfiguration configuration)
+
+        public RepositoryPublicAsyncEFCore(GenericCommandDbContext dbCommandContext,
+            GenericQueryDbContext dbQueryContext)
         {
             DbCommandContext = dbCommandContext;
             DbQueryContext = dbQueryContext;
-            EntitiesCommand = DbCommandContext.Set<TEntity>(); 
+            EntitiesCommand = DbCommandContext.Set<TEntity>();
             EntitiesQuery = DbQueryContext.Set<TEntity>();
         }
 
-        
-        #region Sync Methods
-        public TEntity GetByIdDeleted(params object[] ids)
+
+        #region Async Method
+
+        public virtual async Task<TEntity> GetByIdDeletedAsync(CancellationToken cancellationToken, params object[] ids)
         {
             var entityType = DbCommandContext.Model.FindEntityType(typeof(TEntity));
 
@@ -51,12 +52,13 @@ namespace GenericRepositories.Repository.GenericRepository
 
             var idProperty = key?.Properties.FirstOrDefault()?.Name;
 
-            return TableNoTrackingDeleted
-                .FirstOrDefault(p =>
-                EF.Property<long>(p, idProperty) == (long)ids[0]);
+
+            return await TableNoTrackingDeleted
+                .FirstOrDefaultAsync(p =>
+                EF.Property<long>(p, idProperty) == (long)ids[0], cancellationToken);
         }
 
-        public virtual TEntity GetById(params object[] ids)
+        public virtual async Task<TEntity> GetByIdAsync(CancellationToken cancellationToken, params object[] ids)
         {
             var entityType = DbCommandContext.Model.FindEntityType(typeof(TEntity));
 
@@ -64,60 +66,84 @@ namespace GenericRepositories.Repository.GenericRepository
 
             var idProperty = key?.Properties.FirstOrDefault()?.Name;
 
-            return TableNoTracking
-                .FirstOrDefault(p =>
-                EF.Property<long>(p, idProperty) == (long)ids[0]);
+
+            return await TableNoTracking
+                .FirstOrDefaultAsync(p =>
+                EF.Property<long>(p, idProperty) == (long)ids[0], cancellationToken);
         }
 
-        public virtual void Add(TEntity entity, bool saveNow = true)
+        public virtual async Task AddAsync(TEntity entity, CancellationToken cancellationToken, bool saveNow = true)
         {
             Assert.NotNull(entity, nameof(entity));
+
             entity = SetAddProperty(entity);
-            EntitiesCommand.Add(entity);
+
+
+            await EntitiesCommand.AddAsync(entity, cancellationToken).ConfigureAwait(false);
             if (saveNow)
-                DbCommandContext.SaveChanges();
+                await DbCommandContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         }
 
-        public virtual void AddRange(IEnumerable<TEntity> entities, bool saveNow = true)
+        public virtual async Task AddRangeAsync(IEnumerable<TEntity> entities, CancellationToken cancellationToken, bool saveNow = true)
         {
             Assert.NotNull(entities, nameof(entities));
             List<TEntity> entitiesChanged = new List<TEntity>();
             foreach (TEntity entity in entities.ToList())
                 entitiesChanged.Add(SetAddProperty(entity));
-            EntitiesCommand.AddRange(entitiesChanged);
+            await EntitiesCommand.AddRangeAsync(entitiesChanged, cancellationToken).ConfigureAwait(false);
             if (saveNow)
-                DbCommandContext.SaveChanges();
+                await DbCommandContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         }
 
-        public virtual void Update(TEntity entity, bool saveNow = true)
+        public virtual async Task UpdateAsync(TEntity entity, CancellationToken cancellationToken, bool saveNow = true)
         {
             Assert.NotNull(entity, nameof(entity));
-            entity = SetUpdateProperty(entity);
-            EntitiesCommand.Update(entity);
-            DbCommandContext.SaveChanges();
+
+            var rowVersionValue = (byte[])entity.GetType().GetProperty("RowVersion").GetValue(entity);
+
+            EntitiesCommand.Attach(entity);
+
+            DbCommandContext.Entry(entity).Property("RowVersion").OriginalValue = rowVersionValue;
+
+            SetUpdateProperty(entity);
+
+            DbCommandContext.Entry(entity).State = EntityState.Modified;
+
+            if (saveNow)
+                await DbCommandContext.SaveChangesAsync(cancellationToken);
         }
 
-        public virtual void UpdateRange(IEnumerable<TEntity> entities, bool saveNow = true)
+        public virtual async Task UpdateRangeAsync(IEnumerable<TEntity> entities, CancellationToken cancellationToken, bool saveNow = true)
         {
             Assert.NotNull(entities, nameof(entities));
-            List<TEntity> entitiesChanged = new List<TEntity>();
-            foreach (TEntity entity in entities.ToList())
-                entitiesChanged.Add(SetAddProperty(entity));
-            EntitiesCommand.UpdateRange(entitiesChanged);
+
+            foreach (var entity in entities)
+            {
+                var rowVersionValue = (byte[])entity.GetType().GetProperty("RowVersion").GetValue(entity);
+
+                EntitiesCommand.Attach(entity);
+
+                DbCommandContext.Entry(entity).Property("RowVersion").OriginalValue = rowVersionValue;
+
+                SetUpdateProperty(entity);
+
+                DbCommandContext.Entry(entity).State = EntityState.Modified;
+            }
+
             if (saveNow)
-                DbCommandContext.SaveChanges();
+                await DbCommandContext.SaveChangesAsync(cancellationToken);
         }
 
-        public virtual void Delete(TEntity entity, bool saveNow = true)
+        public virtual async Task DeleteAsync(TEntity entity, CancellationToken cancellationToken, bool saveNow = true)
         {
             Assert.NotNull(entity, nameof(entity));
             entity = SetDeleteProperty(entity);
             EntitiesCommand.Update(entity);
             if (saveNow)
-                DbCommandContext.SaveChanges();
+                await DbCommandContext.SaveChangesAsync(cancellationToken);
         }
 
-        public virtual void DeleteRange(IEnumerable<TEntity> entities, bool saveNow = true)
+        public virtual async Task DeleteRangeAsync(IEnumerable<TEntity> entities, CancellationToken cancellationToken, bool saveNow = true)
         {
             Assert.NotNull(entities, nameof(entities));
             List<TEntity> entitiesChanged = new List<TEntity>();
@@ -125,9 +151,60 @@ namespace GenericRepositories.Repository.GenericRepository
                 entitiesChanged.Add(SetAddProperty(entity));
             EntitiesCommand.UpdateRange(entitiesChanged);
             if (saveNow)
-                DbCommandContext.SaveChanges();
+                await DbCommandContext.SaveChangesAsync(cancellationToken);
         }
+
+        public virtual async Task LoadReferenceAsync<TProperty>(TEntity entity, Expression<Func<TEntity, TProperty>> referenceProperty, CancellationToken cancellationToken)
+            where TProperty : class
+        {
+            Attach(entity);
+            var reference = DbCommandContext.Entry(entity).Reference(referenceProperty);
+            if (!reference.IsLoaded)
+                await reference.LoadAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        public virtual async Task LoadCollectionAsync<TProperty>(TEntity entity, Expression<Func<TEntity, IEnumerable<TProperty>>> collectionProperty, CancellationToken cancellationToken)
+            where TProperty : class
+        {
+            Attach(entity);
+
+            var collection = DbCommandContext.Entry(entity).Collection(collectionProperty);
+            if (!collection.IsLoaded)
+                await collection.LoadAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+
+        public async Task<GreadData<TEntity>> GetListAsync(CancellationToken cancellationToken, GreadData<TEntity> data)
+        {
+            IQueryable<TEntity> query = TableNoTracking;
+
+            foreach (var filter in data.Filter)
+            {
+                query = query.Where(c =>
+                    EF.Property<object>(c, filter.Property).Equals(filter.Value));
+            }
+
+            data.Data = await query
+                .Skip((data.Page - 1) * data.PageSize)
+                .Take(data.PageSize)
+                .ToListAsync(cancellationToken);
+            data.PageCount = data.PageSize;
+            data.Count = data.Data.Count();
+
+            return data;
+
+        }
+
+
+
+        public Task<GreadData<TEntity>> GetDeletedAsync(CancellationToken cancellationToken, GreadData<TEntity> data)
+        {
+            throw new NotImplementedException();
+        }
+
+
         #endregion
+
 
         #region Attach & Detach
         public virtual void Detach(TEntity entity)
@@ -146,27 +223,39 @@ namespace GenericRepositories.Repository.GenericRepository
         }
         #endregion
 
-        #region Explicit Loading
 
-        public virtual void LoadCollection<TProperty>(TEntity entity, Expression<Func<TEntity, IEnumerable<TProperty>>> collectionProperty)
-            where TProperty : class
+        #region Transaction
+        public async Task BeginTransactionAsync(
+            CancellationToken cancellationToken)
         {
-            Attach(entity);
-            var collection = DbCommandContext.Entry(entity).Collection(collectionProperty);
-            if (!collection.IsLoaded)
-                collection.Load();
+            _transaction = await DbCommandContext.Database
+                .BeginTransactionAsync(cancellationToken);
         }
 
-
-        public virtual void LoadReference<TProperty>(TEntity entity, Expression<Func<TEntity, TProperty>> referenceProperty)
-            where TProperty : class
+        public async Task CommitTransactionAsync(
+            CancellationToken cancellationToken)
         {
-            Attach(entity);
-            var reference = DbCommandContext.Entry(entity).Reference(referenceProperty);
-            if (!reference.IsLoaded)
-                reference.Load();
+            if (_transaction is null)
+                return;
+
+            await _transaction.CommitAsync(cancellationToken);
+            await _transaction.DisposeAsync();
+            _transaction = null;
+        }
+
+        public async Task RollbackTransactionAsync(
+            CancellationToken cancellationToken)
+        {
+            if (_transaction is null)
+                return;
+
+            await _transaction.RollbackAsync(cancellationToken);
+            await _transaction.DisposeAsync();
+            _transaction = null;
         }
         #endregion
+
+
 
 
         #region Set Subscriber Properties
@@ -232,9 +321,14 @@ namespace GenericRepositories.Repository.GenericRepository
             return entity;
         }
 
+
         #endregion
 
-        
-    }
 
+
+
+
+
+
+    }
 }

@@ -1,6 +1,6 @@
 ﻿using Application.DTOs.Location.CityDtos.QueryDtos;
 using Domain.Entities.Location;
-using GenericRepositories.Contracts.GenericContract;
+using GenericRepositories.Contracts.Generic;
 
 namespace Application.Contracts.Location.CityContract
 {
