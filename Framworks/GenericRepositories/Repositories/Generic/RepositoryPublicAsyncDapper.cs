@@ -41,7 +41,7 @@ namespace GenericRepositories.Repositories.Generic
         #region Get By Id
 
         public async Task<TEntity?> GetByIdQueryAsync(
-            long id)
+            params object[] ids)
         {
             var entityType = DbCommandContext.Model.FindEntityType(typeof(TEntity));
 
@@ -61,7 +61,7 @@ namespace GenericRepositories.Repositories.Generic
 
             return await connection.QueryFirstOrDefaultAsync<TEntity>(
                 sql,
-                new { id });
+                new { ids[0] });
         }
 
         #endregion
@@ -143,7 +143,7 @@ namespace GenericRepositories.Repositories.Generic
         #region Get Deleted By Id
 
         public async Task<GreadData<TEntity>>
-            GetByIdDeletedItemQueryAsync(long id)
+            GetByIdDeletedItemQueryAsync(params object[] ids)
         {
             var data = new GreadData<TEntity>();
 
@@ -167,7 +167,7 @@ namespace GenericRepositories.Repositories.Generic
             data.Entity =
                 await connection.QueryFirstOrDefaultAsync<TEntity>(
                     sql,
-                    new { id });
+                    new { ids[0] });
 
             return data;
         }
@@ -264,7 +264,7 @@ namespace GenericRepositories.Repositories.Generic
 
         #region Soft Delete
 
-        public async Task<bool> DeleteAsync(long id)
+        public async Task<bool> DeleteAsync(params object[] ids)
         {
             var entityType = DbCommandContext.Model.FindEntityType(typeof(TEntity));
 
@@ -285,7 +285,7 @@ namespace GenericRepositories.Repositories.Generic
             var affectedRows =
                 await connection.ExecuteAsync(
                     sql,
-                    new { Id = id });
+                    new { ids[0] });
 
             return affectedRows > 0;
         }
@@ -295,7 +295,7 @@ namespace GenericRepositories.Repositories.Generic
 
         #region Restore
 
-        public async Task<bool> RestoreAsync(long id)
+        public async Task<bool> RestoreAsync(params object[] ids)
         {
             var entityType = DbCommandContext.Model.FindEntityType(typeof(TEntity));
 
@@ -316,7 +316,7 @@ namespace GenericRepositories.Repositories.Generic
             var affectedRows =
                 await connection.ExecuteAsync(
                     sql,
-                    new { id });
+                    new { ids[0] });
 
             return affectedRows > 0;
         }
@@ -326,7 +326,7 @@ namespace GenericRepositories.Repositories.Generic
 
         #region Exists
 
-        public async Task<bool> ExistsAsync(long id)
+        public async Task<bool> ExistsAsync(params object[] ids)
         {
             var entityType = DbCommandContext.Model.FindEntityType(typeof(TEntity));
 
@@ -355,7 +355,7 @@ namespace GenericRepositories.Repositories.Generic
 
             return await connection.ExecuteScalarAsync<bool>(
                 sql,
-                new { Id = id });
+                new { ids[0] });
         }
 
         #endregion
