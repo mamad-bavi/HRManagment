@@ -15,10 +15,10 @@ namespace Domain.Entities.Base
         public TKey? CreateUserId { get; set; }
         public TDateProperty? ModifyDate { get; set; }
         public TKey? ModifyUserId { get; set; }
+        public byte[] RowVersion { get; set; }
         public TDateProperty DeletedDate { get; set; }
         public TKey? DeletedUserId { get; set; }
         public bool? IsDeleted { get; set; }
-        public byte[] RowVersion { get; set; }
     }
 
     public abstract class BaseEntity<TDateProperty> : BaseEntity<long, TDateProperty>
