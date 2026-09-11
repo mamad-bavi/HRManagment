@@ -1,5 +1,5 @@
 ﻿using Application.DTOs.Location.OrganizationDtos.QueryDtos;
-using GenericRepositories.Filters;
+using GenericRepository.Filters;
 using MediatR;
 
 namespace Application.Feaures.Location.Organization.Requests.Queries

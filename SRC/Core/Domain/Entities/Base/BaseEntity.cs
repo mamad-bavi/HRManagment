@@ -1,7 +1,4 @@
-﻿using GenericRepositories.ParentEntities;
-using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using GenericRepository.ParentEntities;
 
 namespace Domain.Entities.Base
 {

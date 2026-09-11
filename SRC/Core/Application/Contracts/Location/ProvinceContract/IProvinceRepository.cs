@@ -1,5 +1,5 @@
 ﻿using Domain.Entities.Location;
-using GenericRepositories.Contracts.Generic;
+using GenericRepository.Contracts.Generic;
 
 namespace Application.Contracts.Location.ProvinceContract
 {

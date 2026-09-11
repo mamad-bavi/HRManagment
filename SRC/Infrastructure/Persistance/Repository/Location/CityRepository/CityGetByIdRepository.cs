@@ -2,8 +2,8 @@
 using Application.DTOs.Location.CityDtos.QueryDtos;
 using AutoMapper;
 using Domain.Entities.Location;
-using GenericRepositories.Context;
-using GenericRepositories.Repositories.Generic;
+using GenericRepository.Context;
+using GenericRepository.Repositories.Generic;
 
 namespace Persistance.Repository.Location.CityRepository
 {
@@ -11,11 +11,15 @@ namespace Persistance.Repository.Location.CityRepository
         RepositoryPublicAsyncDtoEFCore<City, CityGetByIdDto>,
         ICityGetByIdRepository
     {
-        public CityGetByIdRepository(GenericCommandDbContext dbCommandContext,
-            GenericQueryDbContext dbQueryContext, IMapper mapper) :
+        //public CityGetByIdRepository(GenericCommandDbContext dbCommandContext,
+        //    GenericQueryDbContext dbQueryContext, IMapper mapper) :
+        //    base(dbCommandContext, dbQueryContext, mapper)
+        //{
+        //}
+        public CityGetByIdRepository(GenericCommandDbContext dbCommandContext, 
+            GenericQueryDbContext dbQueryContext, IMapper mapper) : 
             base(dbCommandContext, dbQueryContext, mapper)
         {
         }
-
     }
 }

@@ -1,7 +1,7 @@
 ﻿
 using Domain.Entities.Location;
-using GenericRepositories.Contracts.Generic;
-using GenericRepositories.ParentEntities;
+using GenericRepository.Contracts.Generic;
+using GenericRepository.ParentEntities;
 
 namespace Application.Contracts.Location.CityContract
 {
