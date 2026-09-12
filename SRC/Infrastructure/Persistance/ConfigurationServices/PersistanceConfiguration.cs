@@ -1,6 +1,6 @@
 ﻿using Domain.Entities.Base;
-using GenericRepositories.Configurations;
-using GenericRepositories.Settings;
+using GenericRepository.Configurations;
+using GenericRepository.Settings;
 using Microsoft.Extensions.DependencyInjection;
 using Persistance.FluentApi;
 using System;

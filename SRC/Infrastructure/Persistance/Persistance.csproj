@@ -7,21 +7,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Remove="Contract\**" />
-    <Compile Remove="Repository\GenericRepository\**" />
-    <EmbeddedResource Remove="Contract\**" />
-    <EmbeddedResource Remove="Repository\GenericRepository\**" />
-    <None Remove="Contract\**" />
-    <None Remove="Repository\GenericRepository\**" />
-  </ItemGroup>
-
-  <ItemGroup>
     <PackageReference Include="Dapper" Version="2.1.79" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.11" />
+    <!--<PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.11" />-->
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\Framworks\GenericRepositories\GenericRepositories.csproj" />
     <ProjectReference Include="..\..\Core\Application\Application.csproj" />
   </ItemGroup>
 

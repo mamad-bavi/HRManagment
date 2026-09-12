@@ -1,6 +1,6 @@
 ﻿using Domain.Entities.Location;
-using GenericRepositories.Contracts.Generic;
-using GenericRepositories.Filters;
+using GenericRepository.Contracts.Generic;
+using GenericRepository.Filters;
 
 namespace Application.Contracts.Location.OrganizationContract
 {

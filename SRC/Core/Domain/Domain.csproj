@@ -7,7 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\Framworks\GenericRepositories\GenericRepositories.csproj" />
+    <PackageReference Include="MHBavi.GenericRepositories" Version="1.2.1" />
   </ItemGroup>
 
 </Project>

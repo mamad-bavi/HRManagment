@@ -1,7 +1,4 @@
-﻿using GenericRepositories.ParentEntities;
-using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using GenericRepository.ParentEntities;
 
 namespace Domain.Entities.Base
 {
@@ -15,10 +12,10 @@ namespace Domain.Entities.Base
         public TKey? CreateUserId { get; set; }
         public TDateProperty? ModifyDate { get; set; }
         public TKey? ModifyUserId { get; set; }
+        public byte[] RowVersion { get; set; }
         public TDateProperty DeletedDate { get; set; }
         public TKey? DeletedUserId { get; set; }
         public bool? IsDeleted { get; set; }
-        public byte[] RowVersion { get; set; }
     }
 
     public abstract class BaseEntity<TDateProperty> : BaseEntity<long, TDateProperty>

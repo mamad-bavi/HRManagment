@@ -2,8 +2,8 @@
 using Application.DTOs.Location.CityDtos.CommandDtos;
 using AutoMapper;
 using Domain.Entities.Location;
-using GenericRepositories.Context;
-using GenericRepositories.Repositories.Generic;
+using GenericRepository.Context;
+using GenericRepository.Repositories.Generic;
 
 namespace Persistance.Repository.Location.CityRepository
 {

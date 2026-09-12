@@ -2,7 +2,7 @@
 using Application.DTOs.Location.ProvinceDtos.QueryDtos;
 using Application.Feaures.Location.Province.Requests.Queries;
 using Application.Utilities.AutoMapperGeneric;
-using GenericRepositories.Filters;
+using GenericRepository.Filters;
 using MediatR;
 
 namespace Application.Feaures.Location.Province.Handlers.Queries
