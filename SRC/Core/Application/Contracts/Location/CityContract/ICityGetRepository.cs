@@ -1,11 +1,11 @@
 ﻿using Application.DTOs.Location.CityDtos.QueryDtos;
 using Domain.Entities.Location;
-using GenericRepository.Contracts.Generic;
+using GenericRepository.Contracts.GenericCleanArchitecture;
 
 namespace Application.Contracts.Location.CityContract
 {
-    public interface ICityGetByIdRepository :
-        IRepositoryPublicAsyncDtoEFCore<City, CityGetByIdDto>
+    public interface ICityGetRepository :
+        IRepositoryGet<City>
     {
     }
 }

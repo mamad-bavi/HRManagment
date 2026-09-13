@@ -14,7 +14,7 @@ namespace Persistance.ConfigurationServices
 
             services.AddScoped<ICityCreateRepository, CityCreateRepository>();
             services.AddScoped<ICityUpdateRepository, CityUpdateRepository>();
-            services.AddScoped<ICityGetByIdRepository, CityGetByIdRepository>();
+            services.AddScoped<ICityGetRepository, CityGetRepository>();
             services.AddScoped<ICityGetListRepository, CityGetListRepository>();
 
             #endregion

@@ -24,7 +24,7 @@ namespace Domain.Entities.Person
         public string Description { get; set; }
 
         // ارتباط با سمت‌ها
-        public ICollection<Position> Positions { get; set; }
+        public virtual ICollection<Position> Positions { get; set; }
 
         // متادیتا
         public DateTime CreatedAt { get; set; }

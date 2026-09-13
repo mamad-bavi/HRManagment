@@ -1,6 +1,7 @@
 ﻿using Domain.Entities.Base;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Text;
 
 namespace Domain.Entities.Person
@@ -13,11 +14,13 @@ namespace Domain.Entities.Person
 
         // ساختار درختی
         public long? ParentDepartmentId { get; set; }
+        [ForeignKey(nameof(ParentDepartmentId))]
         public Department ParentDepartment { get; set; }
-        public ICollection<Department> SubDepartments { get; set; }
+        public virtual ICollection<Department> SubDepartments { get; set; }
 
         // مدیر واحد
         public long? ManagerId { get; set; }
+        [ForeignKey(nameof(ManagerId))]
         public Employee Manager { get; set; }
 
         // اطلاعات مالی

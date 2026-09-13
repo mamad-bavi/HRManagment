@@ -4,18 +4,16 @@ using AutoMapper;
 using Domain.Entities.Location;
 using GenericRepository.Context;
 using GenericRepository.Repositories.Generic;
+using GenericRepository.Repositories.GenericCleanArchitecture;
 
 namespace Persistance.Repository.Location.CityRepository
 {
     public class CityUpdateRepository :
-        RepositoryPublicAsyncDtoEFCore<City, CityUpdateDto>,
+        RepositoryUpdate<City>,
         ICityUpdateRepository
     {
-        public CityUpdateRepository(GenericCommandDbContext dbCommandContext,
-            GenericQueryDbContext dbQueryContext, IMapper mapper) :
-            base(dbCommandContext, dbQueryContext, mapper)
+        public CityUpdateRepository(GenericCommandDbContext dbCommandContext, IMapper mapper) : base(dbCommandContext, mapper)
         {
         }
-
     }
 }

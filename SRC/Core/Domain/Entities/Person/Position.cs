@@ -1,6 +1,7 @@
 ﻿using Domain.Entities.Base;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Text;
 
 namespace Domain.Entities.Person
@@ -13,10 +14,12 @@ namespace Domain.Entities.Person
 
         // ارتباط با واحد سازمانی
         public long DepartmentId { get; set; }
+        [ForeignKey(nameof(DepartmentId))]
         public Department Department { get; set; }
 
         // درجه شغلی
         public long JobGradeId { get; set; }
+        [ForeignKey(nameof(JobGradeId))]
         public JobGrade JobGrade { get; set; }
 
         // شرح وظایف

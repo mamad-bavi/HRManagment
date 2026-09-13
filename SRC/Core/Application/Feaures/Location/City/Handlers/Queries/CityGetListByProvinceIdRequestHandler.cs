@@ -9,35 +9,30 @@ namespace Application.Feaures.Location.City.Handlers.Queries
 {
     public class CityGetListByProvinceIdRequestHandler : IRequestHandler<CityGetListByProvinceIdRequest, GreadData<CityGetListByProvinceIdDto>>
     {
-        private readonly ICityCreateRepository cityRepository;
+        private readonly ICityGetRepository cityRepository;
 
-        public CityGetListByProvinceIdRequestHandler(ICityCreateRepository cityRepository)
+        public CityGetListByProvinceIdRequestHandler(ICityGetRepository cityRepository)
         {
             this.cityRepository = cityRepository;
         }
         public async Task<GreadData<CityGetListByProvinceIdDto>> Handle(CityGetListByProvinceIdRequest request, CancellationToken cancellationToken)
         {
-            var gread = new GreadData<Domain.Entities.Location.City>()
-            {
-                Filter = request.GreadData.Filter,
-                Page = request.GreadData.Page,
-                PageSize = request.GreadData.PageSize,
-                PageCount = request.GreadData.PageCount,
-                Count = request.GreadData.Count,
-            };
-            gread.Filter.Add(new Filter
-            {
-                Property = nameof(request.ProvinceId),
-                Value = request.ProvinceId.ToString()
-            });
+            //var gread = new GreadData<Domain.Entities.Location.City>()
+            //{
+            //    Filter = request.GreadData.Filter,
+            //    Page = request.GreadData.Page,
+            //    PageSize = request.GreadData.PageSize,
+            //    PageCount = request.GreadData.PageCount,
+            //    Count = request.GreadData.Count,
+            //};
 
-            var resualt = await cityRepository.GetListAsync(cancellationToken, gread);
+            var resualt = await cityRepository.GetDtosAsync<CityGetListByProvinceIdDto>(cancellationToken, request.GreadData);
 
-            GreadData<CityGetListByProvinceIdDto> greadData = new();
-            greadData = request.GreadData;
-            greadData.Data = resualt.Data.ToList().ConvertListObject<CityGetListByProvinceIdDto, Domain.Entities.Location.City>();
+            //GreadData<CityGetListByProvinceIdDto> greadData = new();
+            //greadData = request.GreadData;
+            //greadData.Data = resualt.Data.ToList().ConvertListObject<CityGetListByProvinceIdDto, Domain.Entities.Location.City>();
 
-            return greadData;
+            return resualt;
         }
     }
 }

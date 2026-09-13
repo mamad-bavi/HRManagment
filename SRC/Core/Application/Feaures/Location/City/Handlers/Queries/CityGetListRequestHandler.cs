@@ -9,30 +9,31 @@ namespace Application.Feaures.Location.City.Handlers.Queries
 {
     public class CityGetListRequestHandler : IRequestHandler<CityGetListRequest, GreadData<CityGetListDto>>
     {
-        private readonly ICityCreateRepository cityRepository;
+        private readonly ICityGetRepository cityRepository;
 
-        public CityGetListRequestHandler(ICityCreateRepository cityRepository)
+        public CityGetListRequestHandler(ICityGetRepository cityRepository)
         {
             this.cityRepository = cityRepository;
         }
         public async Task<GreadData<CityGetListDto>> Handle(CityGetListRequest request, CancellationToken cancellationToken)
         {
-            var gread = new GreadData<Domain.Entities.Location.City>()
-            {
-                Filter = request.GreadData.Filter,
-                Page = request.GreadData.Page,
-                PageSize = request.GreadData.PageSize,
-                PageCount = request.GreadData.PageCount,
-                Count = request.GreadData.Count,
-            };
+            //var gread = new GreadData<Domain.Entities.Location.City>()
+            //{
+            //    Filter = request.GreadData.Filter,
+            //    Page = request.GreadData.Page,
+            //    PageSize = request.GreadData.PageSize,
+            //    PageCount = request.GreadData.PageCount,
+            //    Count = request.GreadData.Count,
+            //};
             
-            var resualt = await cityRepository.GetListAsync(cancellationToken, gread);
+            var resualt = await cityRepository.GetDtosAsync<CityGetListDto>
+                (cancellationToken, request.GreadData);
 
-            GreadData<CityGetListDto> greadData = new();
-            greadData = request.GreadData;
-            greadData.Data = resualt.Data.ToList().ConvertListObject<CityGetListDto, Domain.Entities.Location.City>();
+            //GreadData<CityGetListDto> greadData = new();
+            //greadData = request.GreadData;
+            //greadData.Data = resualt.Data.ToList().ConvertListObject<CityGetListDto, Domain.Entities.Location.City>();
 
-            return greadData;
+            return resualt;
         }
     }
 }

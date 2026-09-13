@@ -1,6 +1,7 @@
 ﻿using Domain.Entities.Base;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Text;
 
 namespace Domain.Entities.Person
@@ -34,7 +35,7 @@ namespace Domain.Entities.Person
 
         // اطلاعات مدیریتی
         public long? ManagerId { get; set; }
-        public Employee Manager { get; set; }
+        public virtual Employee Manager { get; set; }
 
         // متادیتا
         public DateTime CreatedAt { get; set; }

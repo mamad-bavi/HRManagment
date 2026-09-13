@@ -1,4 +1,4 @@
-﻿
+
 using Domain.Entities.Base;
 using GenericRepository.Configurations;
 using GenericRepository.Context;
@@ -6,6 +6,9 @@ using GenericRepository.Settings;
 using Persistance.ConfigurationServices;
 using Persistance.FluentApi;
 using System.Reflection;
+using GenericRepository.Context;
+using GenericRepository.Settings;
+using Persistance.ConfigurationServices;
 using System.Text.Json.Serialization;
 
 
@@ -37,6 +40,7 @@ namespace HRManagment
 
             services.AddConfigurationServices(setting);
 
+
             AssembliesSetting assemblies = new();
             assemblies.EntitiesAssemblies = [typeof(BaseEntity).Assembly];
             assemblies.EntitiesConfigurationAssemblies =
@@ -44,6 +48,9 @@ namespace HRManagment
 
             services.AddGenericConfigurations(setting,assemblies);
             //services.AddDbContext<GenericQueryDbContext>();
+
+            services.AddDbContext<GenericQueryDbContext>();
+
 
            services.AddControllers();
             services.AddMvc();
@@ -68,7 +75,10 @@ namespace HRManagment
 
             app.UseAuthorization();
 
+
             app.PersistanceAddAppBuilderConfiguration();
+
+            //app.PersistanceAddAppBuilderConfiguration();
 
             app.UseEndpoints(endpoints =>
             {

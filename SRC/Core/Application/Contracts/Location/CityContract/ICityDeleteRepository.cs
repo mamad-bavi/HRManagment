@@ -1,5 +1,4 @@
-﻿using Application.DTOs.Location.CityDtos.CommandDtos;
-using Domain.Entities.Location;
+﻿using Domain.Entities.Location;
 using GenericRepository.Contracts.GenericCleanArchitecture;
 using System;
 using System.Collections.Generic;
@@ -7,9 +6,8 @@ using System.Text;
 
 namespace Application.Contracts.Location.CityContract
 {
-    public interface ICityCreateRepository :
-        IRepositoryAdd<City>
+    public interface ICityDeleteRepository :
+        IRepositoryDelete<City>
     {
-
     }
 }
