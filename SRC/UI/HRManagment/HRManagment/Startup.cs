@@ -1,4 +1,7 @@
 ﻿
+using GenericRepository.Context;
+using GenericRepository.Settings;
+using Persistance.ConfigurationServices;
 using System.Text.Json.Serialization;
 
 
@@ -21,7 +24,18 @@ namespace HRManagment
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
-            services.AddControllers();
+
+            DbConnectionSetting setting = new()
+            {
+                CommandConnectionString = Configuration.GetConnectionString("CommandConnectionString"),
+                QueryConnectionString = Configuration.GetConnectionString("QueryConnectionString")
+            };
+
+            services.AddConfigurationServices(setting);
+
+            services.AddDbContext<GenericQueryDbContext>();
+
+           services.AddControllers();
             services.AddMvc();
             // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
             services.AddOpenApi();
@@ -43,6 +57,8 @@ namespace HRManagment
             app.UseHttpsRedirection();
 
             app.UseAuthorization();
+
+            //app.PersistanceAddAppBuilderConfiguration();
 
             app.UseEndpoints(endpoints =>
             {

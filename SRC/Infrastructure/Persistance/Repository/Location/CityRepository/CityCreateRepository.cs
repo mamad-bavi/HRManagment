@@ -3,23 +3,23 @@ using Application.DTOs.Location.CityDtos.CommandDtos;
 using AutoMapper;
 using Domain.Entities.Location;
 using GenericRepository.Context;
-using GenericRepository.Repositories.Generic;
+using GenericRepository.Repositories.GenericCleanArchitecture;
 
 namespace Persistance.Repository.Location.CityRepository
 {
     public class CityCreateRepository :
-        RepositoryPublicAsyncDtoEFCore<City, CityCreateDto>,
+        RepositoryAdd<City>,
         ICityCreateRepository
 
     {
+       
         //public CityCreateRepository(GenericCommandDbContext dbCommandContext,
-        //    GenericQueryDbContext dbQueryContext, IMapper mapper) :
+        //    GenericQueryDbContext dbQueryContext, IMapper mapper) : 
         //    base(dbCommandContext, dbQueryContext, mapper)
         //{
         //}
-        public CityCreateRepository(GenericCommandDbContext dbCommandContext,
-            GenericQueryDbContext dbQueryContext, IMapper mapper) : 
-            base(dbCommandContext, dbQueryContext, mapper)
+        public CityCreateRepository(GenericCommandDbContext dbCommandContext, 
+            IMapper mapper) : base(dbCommandContext, mapper)
         {
         }
     }

@@ -1,6 +1,7 @@
 ﻿using Domain.Entities.Base;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Text;
 
 namespace Domain.Entities.Person
@@ -10,10 +11,12 @@ namespace Domain.Entities.Person
 
         // ارتباط با Employee
         public long EmployeeId { get; set; }
+        [ForeignKey(nameof(EmployeeId))]
         public Employee Employee { get; set; }
 
         // نوع سند
         public long DocumentCategoryId { get; set; }
+        [ForeignKey(nameof(DocumentCategoryId))]
         public DocumentCategory DocumentCategory { get; set; }
 
         // اطلاعات سند
@@ -32,7 +35,7 @@ namespace Domain.Entities.Person
         public string Description { get; set; }
 
         // نسخه‌بندی
-        public ICollection<DocumentVersion> Versions { get; set; }
+        public virtual ICollection<DocumentVersion> Versions { get; set; }
 
         // متادیتا
         public DateTime CreatedAt { get; set; }

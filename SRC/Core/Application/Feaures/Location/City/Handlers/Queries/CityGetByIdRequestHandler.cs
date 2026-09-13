@@ -11,16 +11,16 @@ namespace Application.Feaures.Location.City.Handlers.Queries
 {
     public class CityGetByIdRequestHandler : IRequestHandler<CityGetByIdRequest, CityGetByIdDto>
     {
-        private readonly ICityCreateRepository cityRepository;
+        private readonly ICityGetRepository cityRepository;
 
-        public CityGetByIdRequestHandler(ICityCreateRepository cityRepository)
+        public CityGetByIdRequestHandler(ICityGetRepository cityRepository)
         {
             this.cityRepository = cityRepository;
         }
         public async Task<CityGetByIdDto> Handle(CityGetByIdRequest request, CancellationToken cancellationToken)
         {
-            var resualt = await cityRepository.GetByIdAsync(cancellationToken, request.Id);
-            return resualt.ConvertObject<CityGetByIdDto, Domain.Entities.Location.City>();
+            var resualt = await cityRepository.GetDtoByIdAsync<CityGetByIdDto>(cancellationToken, request.Id);
+            return resualt;
         }
     }
 }

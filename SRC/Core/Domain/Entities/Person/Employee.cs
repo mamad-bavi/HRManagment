@@ -23,13 +23,13 @@ namespace Domain.Entities.Person
         public string EmployeeCode { get; set; }     // کد پرسنلی
 
         // وضعیت پرسنل
-        public EmployeeStatus Status { get; set; }   // Active / Inactive / Suspended
+        //public EmployeeStatus Status { get; set; }   // Active / Inactive / Suspended
 
         // ارتباط با مدل‌های دیگر
-        public ICollection<EmployeeContact> Contacts { get; set; }
-        public ICollection<EmployeeJobInfo> JobInfos { get; set; }
-        public ICollection<EmployeeDocument> Documents { get; set; }
-        public ICollection<EmployeeBankInfo> BankInfos { get; set; }
+        public virtual ICollection<EmployeeContact>? Contacts { get; set; }
+        public virtual ICollection<EmployeeJobInfo>? JobInfos { get; set; }
+        public virtual ICollection<EmployeeDocument>? Documents { get; set; }
+        public virtual ICollection<EmployeeBankInfo>? BankInfos { get; set; }
 
         // متادیتا
         public DateTime CreatedAt { get; set; }

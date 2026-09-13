@@ -12,19 +12,19 @@ namespace Application.Feaures.Location.City.Handlers.Commands
 {
     public class CityUpdateCommandHandler : IRequestHandler<CityUpdateCommand, long>
     {
-        private readonly ICityCreateRepository cityRepository;
+        private readonly ICityUpdateRepository cityRepository;
 
-        public CityUpdateCommandHandler(ICityCreateRepository cityRepository)
+        public CityUpdateCommandHandler(ICityUpdateRepository cityRepository)
         {
             this.cityRepository = cityRepository;
         }
         public async Task<long> Handle(CityUpdateCommand request, CancellationToken cancellationToken)
         {
-            var item = request.CityUpdate
-                .ConvertObject<Domain.Entities.Location.City, CityUpdateDto>();
-            await cityRepository.UpdateAsync(item, cancellationToken);
+            //var item = request.CityUpdate
+            //    .ConvertObject<Domain.Entities.Location.City, CityUpdateDto>();
+            await cityRepository.UpdateDtoAsync<CityUpdateDto>(request.CityUpdate, cancellationToken);
 
-            return item.Id;
+            return request.CityUpdate.Id;
         }
     }
 }
