@@ -33,7 +33,7 @@ namespace HRManagment
 
             services.AddConfigurationServices(setting);
 
-            services.AddDbContext<GenericQueryDbContext>();
+            
 
            services.AddControllers();
             services.AddMvc();
