@@ -1,6 +1,7 @@
 ﻿using Domain.Entities.Base;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Text;
 
 namespace Domain.Entities.Person
@@ -16,20 +17,21 @@ namespace Domain.Entities.Person
         public string BirthCertificateNo { get; set; } // شماره شناسنامه
         public DateTime BirthDate { get; set; }
         public string Gender { get; set; }           // Male / Female
-        public string MaritalStatus { get; set; }    // Single / Married
+        public long MaritalStatus { get; set; }    // Single / Married
 
         // اطلاعات سازمانی پایه
         public DateTime HireDate { get; set; }
         public string EmployeeCode { get; set; }     // کد پرسنلی
 
         // وضعیت پرسنل
-        //public EmployeeStatus Status { get; set; }   // Active / Inactive / Suspended
+        [ForeignKey(nameof(MaritalStatus))]
+        public EmployeeStatus Status { get; set; }   // Active / Inactive / Suspended
 
         // ارتباط با مدل‌های دیگر
-        public virtual ICollection<EmployeeContact>? Contacts { get; set; }
-        public virtual ICollection<EmployeeJobInfo>? JobInfos { get; set; }
-        public virtual ICollection<EmployeeDocument>? Documents { get; set; }
-        public virtual ICollection<EmployeeBankInfo>? BankInfos { get; set; }
+        public virtual ICollection<EmployeeContact> Contacts { get; set; }
+        public virtual ICollection<EmployeeJobInfo> JobInfos { get; set; }
+        public virtual ICollection<EmployeeDocument> Documents { get; set; }
+        public virtual ICollection<EmployeeBankInfo> BankInfos { get; set; }
 
         // متادیتا
         public DateTime CreatedAt { get; set; }

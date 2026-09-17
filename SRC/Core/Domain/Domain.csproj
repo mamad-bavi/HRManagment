@@ -7,11 +7,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Entities\Users\**" />
+    <EmbeddedResource Remove="Entities\Users\**" />
+    <None Remove="Entities\Users\**" />
+  </ItemGroup>
 
+  <ItemGroup>
     <ProjectReference Include="..\..\..\Framworks\GenericRepository\GenericRepository.csproj" />
-
-    <PackageReference Include="MHBavi.GenericRepositories" Version="1.2.3" />
-
   </ItemGroup>
 
 </Project>

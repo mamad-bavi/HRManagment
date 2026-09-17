@@ -40,16 +40,7 @@ namespace HRManagment
 
             services.AddConfigurationServices(setting);
 
-
-            AssembliesSetting assemblies = new();
-            assemblies.EntitiesAssemblies = [typeof(BaseEntity).Assembly];
-            assemblies.EntitiesConfigurationAssemblies =
-                [typeof(IBaseTypeConfiguration<>).Assembly];
-
-            services.AddGenericConfigurations(setting,assemblies);
-            //services.AddDbContext<GenericQueryDbContext>();
-
-            services.AddDbContext<GenericQueryDbContext>();
+            
 
 
            services.AddControllers();

@@ -1,5 +1,5 @@
 ﻿using GenericRepository.Context;
-using GenericRepository.Context.ComareMigration;
+using GenericRepository.Context.AutoMigration;
 using GenericRepository.Contracts.Generic;
 using GenericRepository.Contracts.GenericCleanArchitecture;
 using GenericRepository.Repositories.Generic;
@@ -32,11 +32,13 @@ namespace GenericRepository.Configurations
         }
 
         public static void AddGenericConfigurations(this IServiceCollection services,
+
             string ConnectionString, AssembliesSetting assemblies)
         {
             DbConnectionSetting setting = new()
             {
                 CommandConnectionString = ConnectionString
+
             };
             services.AddGenericDbContex(setting, assemblies);
             services.AddLifeCycles();
@@ -59,13 +61,11 @@ namespace GenericRepository.Configurations
                 !string.IsNullOrEmpty(setting.CommandConnectionString))
                 services.AddDbContext<GenericCommandDbContext>(option =>
                 {
-                    option.UseSqlServer(setting.CommandConnectionString);
                 });
             else if (setting != null &&
                 !string.IsNullOrEmpty(setting.QueryConnectionString))
                 services.AddDbContext<GenericCommandDbContext>(option =>
                 {
-                    option.UseSqlServer(setting.QueryConnectionString);
                 });
 
 
@@ -73,13 +73,10 @@ namespace GenericRepository.Configurations
                 !string.IsNullOrEmpty(setting.QueryConnectionString))
                 services.AddDbContext<GenericQueryDbContext>(option =>
                 {
-                    option.UseSqlServer(setting.QueryConnectionString);
                 });
-            else if(setting != null &&
                 !string.IsNullOrEmpty(setting.CommandConnectionString))
                 services.AddDbContext<GenericQueryDbContext>(option =>
                 {
-                    option.UseSqlServer(setting.CommandConnectionString);
                 });
 
 
