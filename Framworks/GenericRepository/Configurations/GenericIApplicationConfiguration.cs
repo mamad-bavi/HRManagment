@@ -1,4 +1,5 @@
 ﻿using GenericRepository.Context;
+using GenericRepository.Context.ComareMigration;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;

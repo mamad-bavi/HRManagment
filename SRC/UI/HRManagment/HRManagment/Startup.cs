@@ -1,4 +1,11 @@
-﻿
+
+using Domain.Entities.Base;
+using GenericRepository.Configurations;
+using GenericRepository.Context;
+using GenericRepository.Settings;
+using Persistance.ConfigurationServices;
+using Persistance.FluentApi;
+using System.Reflection;
 using GenericRepository.Context;
 using GenericRepository.Settings;
 using Persistance.ConfigurationServices;
@@ -35,6 +42,7 @@ namespace HRManagment
 
             
 
+
            services.AddControllers();
             services.AddMvc();
             // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
@@ -57,6 +65,9 @@ namespace HRManagment
             app.UseHttpsRedirection();
 
             app.UseAuthorization();
+
+
+            app.PersistanceAddAppBuilderConfiguration();
 
             //app.PersistanceAddAppBuilderConfiguration();
 
