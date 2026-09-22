@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Migrations.Operations;
 using Microsoft.Extensions.DependencyInjection;
 using System.Text.Json;
+using System.Xml.Linq;
 
 namespace GenericRepository.Context.AutoMigration
 {
@@ -12,6 +13,7 @@ namespace GenericRepository.Context.AutoMigration
     {
         private const string SnapshotSchema = "dbo";
         private const string SnapshotTable = "__GenericRepositorySchemaSnapshot";
+        private readonly string DbName;
 
         private readonly GenericQueryDbContext _dbContext;
         private readonly IMigrationsSqlGenerator _sqlGenerator;
@@ -24,6 +26,9 @@ namespace GenericRepository.Context.AutoMigration
             _sqlGenerator = dbContext
                 .GetInfrastructure()
                 .GetRequiredService<IMigrationsSqlGenerator>();
+
+            DbName = _dbContext.Database.GetDbConnection().Database;
+
         }
 
         public async Task SynchronizeAsync(

@@ -12,6 +12,8 @@ namespace GenericRepository.Context.AutoMigration
     {
         private const string SnapshotSchema = "dbo";
         private const string SnapshotTable = "__GenericRepositorySchemaSnapshot";
+        private readonly string DbName;
+
 
         private readonly GenericCommandDbContext _dbContext;
         private readonly IMigrationsSqlGenerator _sqlGenerator;
@@ -24,6 +26,9 @@ namespace GenericRepository.Context.AutoMigration
             _sqlGenerator = dbContext
                 .GetInfrastructure()
                 .GetRequiredService<IMigrationsSqlGenerator>();
+
+            DbName = _dbContext.Database.GetDbConnection().Database;
+
         }
 
         public async Task SynchronizeAsync(
