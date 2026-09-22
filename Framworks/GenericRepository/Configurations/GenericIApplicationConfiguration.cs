@@ -10,7 +10,10 @@ namespace GenericRepository.Configurations
     public static class GenericIApplicationConfiguration
     {
 
-        public static async Task GenericAppConfiguration(this IApplicationBuilder app)
+
+        //public static async Task GenericAppConfiguration(this IApplicationBuilder app)
+          
+        public static void GenericAppConfiguration(this IApplicationBuilder app)
         {
 
             //using (var ServiceCollection = app.())
@@ -29,6 +32,8 @@ namespace GenericRepository.Configurations
                 //    scop.CreateCommandDbContextInStart();
                 //}
 
+                scop.CreateCommandDbContextInStart().Wait();
+                scop.CreateQueryDbContextInStart().Wait();
 
             }
         }
@@ -43,8 +48,13 @@ namespace GenericRepository.Configurations
 
             var created = dbContext.Database.EnsureCreated();
 
+            Console.WriteLine($"EnsureCreated: {created}");
 
+            Console.WriteLine(
+                $"CanConnect: {dbContext.Database.CanConnect()}");
 
+            Console.WriteLine(
+                $"EntityCount: {dbContext.Model.GetEntityTypes().Count()}");
 
             var tables = dbContext.Model
     .GetEntityTypes()
@@ -52,6 +62,10 @@ namespace GenericRepository.Configurations
     .Where(x => x != null)
     .ToList();
 
+            foreach (var table in tables)
+            {
+                Console.WriteLine($"TABLE: {table}");
+            }
 
 
         }
@@ -66,7 +80,11 @@ namespace GenericRepository.Configurations
 
 
         private static async Task CreateCommandDbContextInStart(
+    this IServiceScope scope,
+    CancellationToken cancellationToken = default)
         {
+            var migration =
+                scope.ServiceProvider.GetRequiredService<GenericAutoMigrationCommandDb>();
 
             await migration.SynchronizeAsync();
         }
@@ -74,7 +92,11 @@ namespace GenericRepository.Configurations
 
 
         private static async Task CreateQueryDbContextInStart(
+    this IServiceScope scope,
+    CancellationToken cancellationToken = default)
         {
+            var migration =
+                scope.ServiceProvider.GetRequiredService<GenericAutoMigrationQueryDb>();
 
             await migration.SynchronizeAsync();
         }

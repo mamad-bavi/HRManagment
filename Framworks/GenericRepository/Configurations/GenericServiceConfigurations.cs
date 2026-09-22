@@ -1,4 +1,4 @@
-﻿using GenericRepository.Context;
+using GenericRepository.Context;
 using GenericRepository.Context.AutoMigration;
 using GenericRepository.Contracts.Generic;
 using GenericRepository.Contracts.GenericCleanArchitecture;
@@ -61,11 +61,20 @@ namespace GenericRepository.Configurations
                 !string.IsNullOrEmpty(setting.CommandConnectionString))
                 services.AddDbContext<GenericCommandDbContext>(option =>
                 {
+                    option.UseSqlServer(setting.CommandConnectionString,
+                        sqlOptions =>
+                        {
+                            sqlOptions.MigrationsAssembly(
+                                typeof(GenericCommandDbContext).Assembly.FullName);
+                        }
+                        );
+
                 });
             else if (setting != null &&
                 !string.IsNullOrEmpty(setting.QueryConnectionString))
                 services.AddDbContext<GenericCommandDbContext>(option =>
                 {
+                    option.UseSqlServer(setting.QueryConnectionString);
                 });
 
 
@@ -73,10 +82,13 @@ namespace GenericRepository.Configurations
                 !string.IsNullOrEmpty(setting.QueryConnectionString))
                 services.AddDbContext<GenericQueryDbContext>(option =>
                 {
+                    option.UseSqlServer(setting.QueryConnectionString);
                 });
+            else if(setting != null &&
                 !string.IsNullOrEmpty(setting.CommandConnectionString))
                 services.AddDbContext<GenericQueryDbContext>(option =>
                 {
+                    option.UseSqlServer(setting.CommandConnectionString);
                 });
 
 
