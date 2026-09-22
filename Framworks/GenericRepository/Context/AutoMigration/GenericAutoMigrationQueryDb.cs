@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
@@ -15,11 +16,12 @@ namespace GenericRepository.Context.AutoMigration
         private const string SnapshotTable = "__GenericRepositorySchemaSnapshot";
         private readonly string DbName;
 
+
         private readonly GenericQueryDbContext _dbContext;
         private readonly IMigrationsSqlGenerator _sqlGenerator;
 
         public GenericAutoMigrationQueryDb(
-    GenericQueryDbContext dbContext)
+             GenericQueryDbContext dbContext)
         {
             _dbContext = dbContext;
 
@@ -58,11 +60,9 @@ namespace GenericRepository.Context.AutoMigration
         public async Task SyncAsync(
             CancellationToken cancellationToken = default)
         {
-            // Create Db If Not Exist
             await _dbContext.Database.EnsureCreatedAsync(
                 cancellationToken);
 
-            // Create the first Snapshot 
             var currentSnapshot = CreateSnapshot();
 
             var previousSnapshot =
@@ -77,7 +77,6 @@ namespace GenericRepository.Context.AutoMigration
                 return;
             }
 
-            // Operation Change Schema
             var operations = BuildOperations(
                 previousSnapshot,
                 currentSnapshot);
@@ -85,14 +84,12 @@ namespace GenericRepository.Context.AutoMigration
             if (operations.Count == 0)
                 return;
 
-            // Operation Local Transaction
             await using var transaction =
                 await _dbContext.Database.BeginTransactionAsync(
                     cancellationToken);
 
             try
             {
-                // Concurrency Handel for Migration
                 await AcquireApplicationLockAsync(
                     cancellationToken);
 
@@ -110,7 +107,6 @@ namespace GenericRepository.Context.AutoMigration
                         cancellationToken);
                 }
 
-                // Snapshot created when opertaion is success
                 await SaveSnapshotAsync(
                     currentSnapshot,
                     cancellationToken);
@@ -126,6 +122,7 @@ namespace GenericRepository.Context.AutoMigration
                 throw;
             }
         }
+
 
 
         private List<MigrationOperation> BuildOperations(
@@ -156,6 +153,7 @@ namespace GenericRepository.Context.AutoMigration
 
             return operations;
         }
+
 
 
         private void AddNewTables(
@@ -219,7 +217,6 @@ namespace GenericRepository.Context.AutoMigration
                         x.Schema == table.Schema &&
                         x.Name == table.Name);
 
-                // new Table was created in CreateTable  
                 if (oldTable == null)
                     continue;
 
@@ -276,7 +273,6 @@ namespace GenericRepository.Context.AutoMigration
                 IsRowVersion = column.IsRowVersion
             };
 
-            // important Annotation in EF/ Sql
             foreach (var annotation in column.Annotations)
             {
                 operation[annotation.Key] =
@@ -517,6 +513,7 @@ namespace GenericRepository.Context.AutoMigration
                 }
 
 
+
                 var primaryKey =
                     entity.FindPrimaryKey();
 
@@ -657,7 +654,6 @@ namespace GenericRepository.Context.AutoMigration
         }
 
 
-
         private async Task<SchemaSnapshot?>
             LoadSnapshotAsync(
                 CancellationToken cancellationToken)
@@ -665,7 +661,7 @@ namespace GenericRepository.Context.AutoMigration
             var exists = await _dbContext.Database
                 .SqlQueryRaw<int>(
                     $"""
-                    SELECT COUNT(*)
+                    SELECT COUNT(*) As Value
                     FROM INFORMATION_SCHEMA.TABLES
                     WHERE TABLE_SCHEMA = '{SnapshotSchema}'
                       AND TABLE_NAME = '{SnapshotTable}'
@@ -678,7 +674,7 @@ namespace GenericRepository.Context.AutoMigration
             var json = await _dbContext.Database
                 .SqlQueryRaw<string>(
                     $"""
-                    SELECT SnapshotJson
+                    SELECT SnapshotJson As Value
                     FROM [{SnapshotSchema}].[{SnapshotTable}]
                     WHERE Id = 1
                     """)
@@ -693,7 +689,7 @@ namespace GenericRepository.Context.AutoMigration
 
         private async Task SaveSnapshotAsync(
             SchemaSnapshot snapshot,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken = default)
         {
             var json =
                 JsonSerializer.Serialize(
@@ -714,6 +710,7 @@ namespace GenericRepository.Context.AutoMigration
                     [{SnapshotSchema}].[{SnapshotTable}]
                     (
                         Id INT NOT NULL PRIMARY KEY,
+                        TableName NVARCHAR(MAX),
                         SnapshotJson NVARCHAR(MAX) NOT NULL,
                         UpdatedAt DATETIME2 NOT NULL
                     );
@@ -724,42 +721,51 @@ namespace GenericRepository.Context.AutoMigration
             var escapedJson =
                 json.Replace("'", "''");
 
+            var qualifiedTable =
+    $"[{SnapshotSchema.Replace("]", "]]")}].[{SnapshotTable.Replace("]", "]]")}]";
+
+
+
             await _dbContext.Database.ExecuteSqlRawAsync(
-                $"""
-                MERGE [{SnapshotSchema}].[{SnapshotTable}]
-                AS Target
-                USING
-                (
-                    SELECT
-                        1 AS Id,
-                        N'{escapedJson}' AS SnapshotJson,
-                        SYSUTCDATETIME() AS UpdatedAt
-                )
-                AS Source
-                ON Target.Id = Source.Id
+    $"""
+    MERGE {qualifiedTable} AS Target
+    USING
+    (
+        SELECT
+            1 AS Id,
+            @SnapshotJson AS SnapshotJson,
+            SYSUTCDATETIME() AS UpdatedAt
+    ) AS Source
+    ON Target.Id = Source.Id
 
-                WHEN MATCHED THEN
-                    UPDATE SET
-                        SnapshotJson = Source.SnapshotJson,
-                        UpdatedAt = Source.UpdatedAt
+    WHEN MATCHED THEN
+        UPDATE SET
+            SnapshotJson = Source.SnapshotJson,
+            UpdatedAt = Source.UpdatedAt
 
-                WHEN NOT MATCHED THEN
-                    INSERT
-                    (
-                        Id,
-                        SnapshotJson,
-                        UpdatedAt
-                    )
-                    VALUES
-                    (
-                        Source.Id,
-                        Source.SnapshotJson,
-                        Source.UpdatedAt
-                    );
-                """,
-                cancellationToken);
+    WHEN NOT MATCHED THEN
+        INSERT
+        (
+            Id,
+            SnapshotJson,
+            UpdatedAt
+        )
+        VALUES
+        (
+            Source.Id,
+            Source.SnapshotJson,
+            Source.UpdatedAt
+        );
+    """,
+    new object[]
+    {
+        new SqlParameter("@SnapshotJson", json)
+    },
+    cancellationToken);
+
+
+
         }
-
 
 
         private async Task AcquireApplicationLockAsync(
@@ -782,7 +788,6 @@ namespace GenericRepository.Context.AutoMigration
                 """,
                 cancellationToken);
         }
-
 
         private static Type GetClrType(
             string clrType)

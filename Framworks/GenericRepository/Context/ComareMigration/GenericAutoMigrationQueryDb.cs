@@ -60,8 +60,12 @@ namespace GenericRepository.Context.ComareMigration
             // 2. اگر دیتابیس ایجاد شد، snapshot اولیه ساخته شود
             var currentSnapshot = CreateSnapshot();
 
+            
+            
             var previousSnapshot =
                 await LoadSnapshotAsync(cancellationToken);
+
+
 
             if (previousSnapshot == null)
             {
@@ -689,7 +693,7 @@ namespace GenericRepository.Context.ComareMigration
             var exists = await _dbContext.Database
                 .SqlQueryRaw<int>(
                     $"""
-                    SELECT COUNT(*)
+                    SELECT COUNT(*) As Value
                     FROM INFORMATION_SCHEMA.TABLES
                     WHERE TABLE_SCHEMA = '{SnapshotSchema}'
                       AND TABLE_NAME = '{SnapshotTable}'
@@ -702,7 +706,7 @@ namespace GenericRepository.Context.ComareMigration
             var json = await _dbContext.Database
                 .SqlQueryRaw<string>(
                     $"""
-                    SELECT SnapshotJson
+                    SELECT SnapshotJson As Value
                     FROM [{SnapshotSchema}].[{SnapshotTable}]
                     WHERE Id = 1
                     """)

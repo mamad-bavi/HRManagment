@@ -1,10 +1,12 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Migrations.Operations;
 using Microsoft.Extensions.DependencyInjection;
 using System.Text.Json;
+
 
 namespace GenericRepository.Context.AutoMigration
 {
@@ -659,7 +661,7 @@ namespace GenericRepository.Context.AutoMigration
             var exists = await _dbContext.Database
                 .SqlQueryRaw<int>(
                     $"""
-                    SELECT COUNT(*)
+                    SELECT COUNT(*) As Value
                     FROM INFORMATION_SCHEMA.TABLES
                     WHERE TABLE_SCHEMA = '{SnapshotSchema}'
                       AND TABLE_NAME = '{SnapshotTable}'
@@ -672,7 +674,7 @@ namespace GenericRepository.Context.AutoMigration
             var json = await _dbContext.Database
                 .SqlQueryRaw<string>(
                     $"""
-                    SELECT SnapshotJson
+                    SELECT SnapshotJson As Value
                     FROM [{SnapshotSchema}].[{SnapshotTable}]
                     WHERE Id = 1
                     """)
@@ -687,7 +689,7 @@ namespace GenericRepository.Context.AutoMigration
 
         private async Task SaveSnapshotAsync(
             SchemaSnapshot snapshot,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken = default)
         {
             var json =
                 JsonSerializer.Serialize(
@@ -718,40 +720,48 @@ namespace GenericRepository.Context.AutoMigration
             var escapedJson =
                 json.Replace("'", "''");
 
+            var qualifiedTable =
+    $"[{SnapshotSchema.Replace("]", "]]")}].[{SnapshotTable.Replace("]", "]]")}]";
+
             await _dbContext.Database.ExecuteSqlRawAsync(
-                $"""
-                MERGE [{SnapshotSchema}].[{SnapshotTable}]
-                AS Target
-                USING
-                (
-                    SELECT
-                        1 AS Id,
-                        N'{escapedJson}' AS SnapshotJson,
-                        SYSUTCDATETIME() AS UpdatedAt
-                )
-                AS Source
-                ON Target.Id = Source.Id
+    $"""
+    MERGE {qualifiedTable} AS Target
+    USING
+    (
+        SELECT
+            1 AS Id,
+            @SnapshotJson AS SnapshotJson,
+            SYSUTCDATETIME() AS UpdatedAt
+    ) AS Source
+    ON Target.Id = Source.Id
 
-                WHEN MATCHED THEN
-                    UPDATE SET
-                        SnapshotJson = Source.SnapshotJson,
-                        UpdatedAt = Source.UpdatedAt
+    WHEN MATCHED THEN
+        UPDATE SET
+            SnapshotJson = Source.SnapshotJson,
+            UpdatedAt = Source.UpdatedAt
 
-                WHEN NOT MATCHED THEN
-                    INSERT
-                    (
-                        Id,
-                        SnapshotJson,
-                        UpdatedAt
-                    )
-                    VALUES
-                    (
-                        Source.Id,
-                        Source.SnapshotJson,
-                        Source.UpdatedAt
-                    );
-                """,
-                cancellationToken);
+    WHEN NOT MATCHED THEN
+        INSERT
+        (
+            Id,
+            SnapshotJson,
+            UpdatedAt
+        )
+        VALUES
+        (
+            Source.Id,
+            Source.SnapshotJson,
+            Source.UpdatedAt
+        );
+    """,
+    new object[]
+    {
+        new SqlParameter("@SnapshotJson", json)
+    },
+    cancellationToken);
+
+
+
         }
 
 
