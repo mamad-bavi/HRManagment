@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
@@ -6,12 +7,17 @@ using Microsoft.EntityFrameworkCore.Migrations.Operations;
 using Microsoft.Extensions.DependencyInjection;
 using System.Text.Json;
 
+
 namespace GenericRepository.Context.ComareMigration
 {
+
+
     public sealed class GenericAutoMigrationCommandDb
     {
         private const string SnapshotSchema = "dbo";
         private const string SnapshotTable = "__GenericRepositorySchemaSnapshot";
+        private readonly string DbName;
+
 
         private readonly GenericCommandDbContext _dbContext;
         private readonly IMigrationsSqlGenerator _sqlGenerator;
@@ -24,6 +30,9 @@ namespace GenericRepository.Context.ComareMigration
             _sqlGenerator = dbContext
                 .GetInfrastructure()
                 .GetRequiredService<IMigrationsSqlGenerator>();
+
+            DbName = _dbContext.Database.GetDbConnection().Database;
+
         }
 
         public async Task SynchronizeAsync(
@@ -53,11 +62,9 @@ namespace GenericRepository.Context.ComareMigration
         public async Task SyncAsync(
             CancellationToken cancellationToken = default)
         {
-            // 1. ساخت دیتابیس در صورتی که وجود نداشته باشد
             await _dbContext.Database.EnsureCreatedAsync(
                 cancellationToken);
 
-            // 2. اگر دیتابیس ایجاد شد، snapshot اولیه ساخته شود
             var currentSnapshot = CreateSnapshot();
 
             var previousSnapshot =
@@ -72,7 +79,6 @@ namespace GenericRepository.Context.ComareMigration
                 return;
             }
 
-            // 3. ساخت عملیات تغییر Schema
             var operations = BuildOperations(
                 previousSnapshot,
                 currentSnapshot);
@@ -80,14 +86,12 @@ namespace GenericRepository.Context.ComareMigration
             if (operations.Count == 0)
                 return;
 
-            // 4. اجرای تغییرات داخل Transaction
             await using var transaction =
                 await _dbContext.Database.BeginTransactionAsync(
                     cancellationToken);
 
             try
             {
-                // جلوگیری از اجرای همزمان Migration
                 await AcquireApplicationLockAsync(
                     cancellationToken);
 
@@ -105,7 +109,6 @@ namespace GenericRepository.Context.ComareMigration
                         cancellationToken);
                 }
 
-                // Snapshot فقط بعد از موفقیت کامل عملیات
                 await SaveSnapshotAsync(
                     currentSnapshot,
                     cancellationToken);
@@ -122,9 +125,7 @@ namespace GenericRepository.Context.ComareMigration
             }
         }
 
-        // =========================================================
-        // Build Operations
-        // =========================================================
+
 
         private List<MigrationOperation> BuildOperations(
             SchemaSnapshot oldSnapshot,
@@ -132,34 +133,20 @@ namespace GenericRepository.Context.ComareMigration
         {
             var operations = new List<MigrationOperation>();
 
-            AddNewTables(
-                oldSnapshot,
-                newSnapshot,
-                operations);
+            operations.AddRange(AddNewTables(oldSnapshot, newSnapshot, operations));
 
-            AddNewColumns(
-                oldSnapshot,
-                newSnapshot,
-                operations);
+            operations.AddRange(AddNewColumns(oldSnapshot, newSnapshot, operations));
 
-            AddNewIndexes(
-                oldSnapshot,
-                newSnapshot,
-                operations);
+            operations.AddRange(AddNewIndexes(oldSnapshot, newSnapshot, operations));
 
-            AddNewForeignKeys(
-                oldSnapshot,
-                newSnapshot,
-                operations);
+            operations.AddRange(AddNewForeignKeys(oldSnapshot, newSnapshot, operations));
 
-            return operations;
+            return operations.Distinct().ToList();
         }
 
-        // =========================================================
-        // Tables
-        // =========================================================
 
-        private void AddNewTables(
+
+        private List<MigrationOperation> AddNewTables(
             SchemaSnapshot oldSnapshot,
             SchemaSnapshot newSnapshot,
             List<MigrationOperation> operations)
@@ -205,13 +192,13 @@ namespace GenericRepository.Context.ComareMigration
 
                 operations.Add(createTable);
             }
+
+            return operations;
+
         }
 
-        // =========================================================
-        // Columns
-        // =========================================================
 
-        private void AddNewColumns(
+        private List<MigrationOperation> AddNewColumns(
             SchemaSnapshot oldSnapshot,
             SchemaSnapshot newSnapshot,
             List<MigrationOperation> operations)
@@ -223,7 +210,6 @@ namespace GenericRepository.Context.ComareMigration
                         x.Schema == table.Schema &&
                         x.Name == table.Name);
 
-                // جدول جدید قبلاً در CreateTable ساخته شده
                 if (oldTable == null)
                     continue;
 
@@ -241,6 +227,8 @@ namespace GenericRepository.Context.ComareMigration
                             column));
                 }
             }
+
+            return operations;
         }
 
         private AddColumnOperation CreateColumnOperation(
@@ -280,7 +268,6 @@ namespace GenericRepository.Context.ComareMigration
                 IsRowVersion = column.IsRowVersion
             };
 
-            // حفظ Annotation های مهم EF / SQL Server
             foreach (var annotation in column.Annotations)
             {
                 operation[annotation.Key] =
@@ -290,11 +277,8 @@ namespace GenericRepository.Context.ComareMigration
             return operation;
         }
 
-        // =========================================================
-        // Indexes
-        // =========================================================
 
-        private void AddNewIndexes(
+        private List<MigrationOperation> AddNewIndexes(
             SchemaSnapshot oldSnapshot,
             SchemaSnapshot newSnapshot,
             List<MigrationOperation> operations)
@@ -308,7 +292,6 @@ namespace GenericRepository.Context.ComareMigration
 
                 if (oldTable == null)
                 {
-                    // جدول جدید است؛ Indexها جداگانه ساخته می‌شوند
                     oldTable = new TableSnapshot
                     {
                         Name = table.Name,
@@ -342,13 +325,13 @@ namespace GenericRepository.Context.ComareMigration
                         });
                 }
             }
+
+
+            return operations;
         }
 
-        // =========================================================
-        // Foreign Keys
-        // =========================================================
 
-        private void AddNewForeignKeys(
+        private List<MigrationOperation> AddNewForeignKeys(
             SchemaSnapshot oldSnapshot,
             SchemaSnapshot newSnapshot,
             List<MigrationOperation> operations)
@@ -396,6 +379,9 @@ namespace GenericRepository.Context.ComareMigration
                         });
                 }
             }
+
+
+            return operations;
         }
 
         private static ReferentialAction ConvertDeleteBehavior(
@@ -420,9 +406,7 @@ namespace GenericRepository.Context.ComareMigration
             };
         }
 
-        // =========================================================
-        // Snapshot
-        // =========================================================
+
 
         private SchemaSnapshot CreateSnapshot()
         {
@@ -448,9 +432,7 @@ namespace GenericRepository.Context.ComareMigration
                     Schema = schema
                 };
 
-                // -------------------------
-                // Columns
-                // -------------------------
+
 
                 var tableIdentifier =
                     StoreObjectIdentifier.Table(
@@ -531,9 +513,7 @@ namespace GenericRepository.Context.ComareMigration
                     table.Columns.Add(column);
                 }
 
-                // -------------------------
-                // Primary Key
-                // -------------------------
+
 
                 var primaryKey =
                     entity.FindPrimaryKey();
@@ -559,9 +539,7 @@ namespace GenericRepository.Context.ComareMigration
                         };
                 }
 
-                // -------------------------
-                // Indexes
-                // -------------------------
+
 
                 foreach (var index in entity.GetIndexes())
                 {
@@ -600,9 +578,7 @@ namespace GenericRepository.Context.ComareMigration
                         });
                 }
 
-                // -------------------------
-                // Foreign Keys
-                // -------------------------
+
 
                 foreach (var foreignKey
                     in entity.GetForeignKeys())
@@ -678,9 +654,6 @@ namespace GenericRepository.Context.ComareMigration
             return snapshot;
         }
 
-        // =========================================================
-        // Snapshot Database
-        // =========================================================
 
         private async Task<SchemaSnapshot?>
             LoadSnapshotAsync(
@@ -699,94 +672,187 @@ namespace GenericRepository.Context.ComareMigration
             if (exists == 0)
                 return null;
 
-            var json = await _dbContext.Database
-                .SqlQueryRaw<string>(
+            var tableSnapshot = await _dbContext.Database
+                .SqlQueryRaw<TableSnapshotSerialized>(
                     $"""
-                    SELECT SnapshotJson As Value
+                    SELECT *
                     FROM [{SnapshotSchema}].[{SnapshotTable}]
-                    WHERE Id = 1
                     """)
-                .FirstOrDefaultAsync(cancellationToken);
+                .ToListAsync(cancellationToken);
 
-            if (string.IsNullOrWhiteSpace(json))
+            var result = new SchemaSnapshot()
+            {
+                Tables = tableSnapshot.Select(c => new TableSnapshot()
+                {
+                    Name = c.TableName,
+                    Schema = c.SchemaName,
+                    Columns = JsonSerializer.Deserialize<List<ColumnSnapshot>>(c.JsonColumns),
+                    PrimaryKey = JsonSerializer.Deserialize<PrimaryKeySnapshot>(c.JsonPrimaryKey),
+                    ForeignKeys = JsonSerializer.Deserialize<List<ForeignKeySnapshot>>(c.JsonForeignKeys),
+                    Indexes = JsonSerializer.Deserialize<List<IndexSnapshot>>(c.JsonIndexes)
+
+                }).ToList()
+
+            };
+            if (tableSnapshot == null || tableSnapshot.Count() == 0)
                 return null;
 
-            return JsonSerializer.Deserialize<SchemaSnapshot>(
-                json);
+            return result;
         }
+
+
+
 
         private async Task SaveSnapshotAsync(
-            SchemaSnapshot snapshot,
-            CancellationToken cancellationToken)
+    SchemaSnapshot snapshot,
+    CancellationToken cancellationToken = default)
         {
-            var json =
-                JsonSerializer.Serialize(
-                    snapshot,
-                    new JsonSerializerOptions
-                    {
-                        WriteIndented = false
-                    });
+            var qualifiedTable =
+                $"[{SnapshotSchema.Replace("]", "]]")}].[{SnapshotTable.Replace("]", "]]")}]";
 
+            // Create snapshot table if it does not exist
             await _dbContext.Database.ExecuteSqlRawAsync(
                 $"""
-                IF OBJECT_ID(
-                    '[{SnapshotSchema}].[{SnapshotTable}]',
-                    'U'
-                ) IS NULL
-                BEGIN
-                    CREATE TABLE
-                    [{SnapshotSchema}].[{SnapshotTable}]
-                    (
-                        Id INT NOT NULL PRIMARY KEY,
-                        SnapshotJson NVARCHAR(MAX) NOT NULL,
-                        UpdatedAt DATETIME2 NOT NULL
-                    );
-                END
-                """,
+        IF OBJECT_ID(N'{SnapshotSchema}.{SnapshotTable}', 'U') IS NULL
+        BEGIN
+            CREATE TABLE {qualifiedTable}
+            (
+                Id INT IDENTITY(1,1) NOT NULL
+                    CONSTRAINT PK_{SnapshotTable} PRIMARY KEY,
+
+                TableName NVARCHAR(128) NOT NULL,
+                SchemaName NVARCHAR(128) NOT NULL,
+
+                JsonColumns NVARCHAR(MAX) NULL,
+                JsonPrimaryKey NVARCHAR(MAX) NULL,
+                JsonIndexes NVARCHAR(MAX) NULL,
+                JsonForeignKeys NVARCHAR(MAX) NULL,
+
+                UpdatedAt DATETIME2 NOT NULL
+            );
+
+            CREATE UNIQUE INDEX UX_{SnapshotTable}_Schema_Table
+            ON {qualifiedTable}
+            (
+                SchemaName,
+                TableName
+            );
+        END
+        """,
                 cancellationToken);
 
-            var escapedJson =
-                json.Replace("'", "''");
+            //List<(string SchemaName, string TableName)> deleteTable = new();
 
-            await _dbContext.Database.ExecuteSqlRawAsync(
-                $"""
-                MERGE [{SnapshotSchema}].[{SnapshotTable}]
-                AS Target
-                USING
+            //foreach (var checkDeletedItem in snapshot.Tables)
+            //{
+            //    var deletedItem = await _dbContext.Database.ExecuteSqlRawAsync<(string SchemaName, string TableName)>(
+            //    @$" SELECT TableName,SchemaName 
+            //    FROM [{SnapshotSchema}].[{SnapshotTable}] 
+            //    where SchemaName = {checkDeletedItem.Schema} 
+            //    AND TableName = {checkDeletedItem.Name}"
+            //    , cancellationToken);
+
+            //    deleteTable.Add(());
+
+            //}
+
+            foreach (var item in snapshot.Tables)
+            {
+                var jsonColumns =
+                    JsonSerializer.Serialize(
+                        item.Columns,
+                        new JsonSerializerOptions
+                        {
+                            WriteIndented = false
+                        });
+
+                var jsonPrimaryKey =
+                    JsonSerializer.Serialize(
+                        item.PrimaryKey,
+                        new JsonSerializerOptions
+                        {
+                            WriteIndented = false
+                        });
+
+                var jsonIndexes =
+                    JsonSerializer.Serialize(
+                        item.Indexes,
+                        new JsonSerializerOptions
+                        {
+                            WriteIndented = false
+                        });
+
+                var jsonForeignKeys =
+                    JsonSerializer.Serialize(
+                        item.ForeignKeys,
+                        new JsonSerializerOptions
+                        {
+                            WriteIndented = false
+                        });
+
+                await _dbContext.Database.ExecuteSqlRawAsync(
+                    $"""
+            MERGE {qualifiedTable} AS Target
+            USING
+            (
+                SELECT
+                    @TableName AS TableName,
+                    @SchemaName AS SchemaName,
+                    @JsonColumns AS JsonColumns,
+                    @JsonPrimaryKey AS JsonPrimaryKey,
+                    @JsonIndexes AS JsonIndexes,
+                    @JsonForeignKeys AS JsonForeignKeys,
+                    SYSUTCDATETIME() AS UpdatedAt
+            ) AS Source
+
+            ON Target.SchemaName = Source.SchemaName
+            AND Target.TableName = Source.TableName
+
+            WHEN MATCHED THEN
+                UPDATE SET
+                    JsonColumns = Source.JsonColumns,
+                    JsonPrimaryKey = Source.JsonPrimaryKey,
+                    JsonIndexes = Source.JsonIndexes,
+                    JsonForeignKeys = Source.JsonForeignKeys,
+                    UpdatedAt = Source.UpdatedAt
+
+            WHEN NOT MATCHED THEN
+                INSERT
                 (
-                    SELECT
-                        1 AS Id,
-                        N'{escapedJson}' AS SnapshotJson,
-                        SYSUTCDATETIME() AS UpdatedAt
+                    TableName,
+                    SchemaName,
+                    JsonColumns,
+                    JsonPrimaryKey,
+                    JsonIndexes,
+                    JsonForeignKeys,
+                    UpdatedAt
                 )
-                AS Source
-                ON Target.Id = Source.Id
-
-                WHEN MATCHED THEN
-                    UPDATE SET
-                        SnapshotJson = Source.SnapshotJson,
-                        UpdatedAt = Source.UpdatedAt
-
-                WHEN NOT MATCHED THEN
-                    INSERT
-                    (
-                        Id,
-                        SnapshotJson,
-                        UpdatedAt
-                    )
-                    VALUES
-                    (
-                        Source.Id,
-                        Source.SnapshotJson,
-                        Source.UpdatedAt
-                    );
-                """,
-                cancellationToken);
+                VALUES
+                (
+                    Source.TableName,
+                    Source.SchemaName,
+                    Source.JsonColumns,
+                    Source.JsonPrimaryKey,
+                    Source.JsonIndexes,
+                    Source.JsonForeignKeys,
+                    Source.UpdatedAt
+                );
+            """,
+                    new object[]
+                    {
+                new SqlParameter("@TableName", item.Name),
+                new SqlParameter("@SchemaName", item.Schema),
+                new SqlParameter("@JsonColumns", jsonColumns),
+                new SqlParameter("@JsonPrimaryKey", jsonPrimaryKey),
+                new SqlParameter("@JsonIndexes", jsonIndexes),
+                new SqlParameter("@JsonForeignKeys", jsonForeignKeys)
+                    },
+                    cancellationToken);
+            }
         }
 
-        // =========================================================
-        // Application Lock
-        // =========================================================
+
+
 
         private async Task AcquireApplicationLockAsync(
             CancellationToken cancellationToken)
@@ -809,10 +875,6 @@ namespace GenericRepository.Context.ComareMigration
                 cancellationToken);
         }
 
-        // =========================================================
-        // CLR Type
-        // =========================================================
-
         private static Type GetClrType(
             string clrType)
         {
@@ -821,9 +883,27 @@ namespace GenericRepository.Context.ComareMigration
         }
     }
 
-    // =============================================================
-    // Snapshot Models
-    // =============================================================
+
+
+    public sealed class TableSnapshotSerialized
+    {
+        public int Id { get; set; }
+        public string? TableName { get; set; } = string.Empty;
+
+        public string? SchemaName { get; set; } = "dbo";
+
+        public string? JsonColumns { get; set; }
+
+        public string? JsonPrimaryKey { get; set; }
+
+        public string? JsonIndexes { get; set; }
+
+        public string? JsonForeignKeys { get; set; }
+        public DateTime? UpdatedAt { get; set; }
+
+    }
+
+
 
     public sealed class SchemaSnapshot
     {
@@ -832,17 +912,17 @@ namespace GenericRepository.Context.ComareMigration
 
     public sealed class TableSnapshot
     {
-        public string Name { get; set; } = string.Empty;
+        public string? Name { get; set; } = string.Empty;
 
-        public string Schema { get; set; } = "dbo";
+        public string? Schema { get; set; } = "dbo";
 
-        public List<ColumnSnapshot> Columns { get; set; } = new();
+        public List<ColumnSnapshot>? Columns { get; set; } = new();
 
         public PrimaryKeySnapshot? PrimaryKey { get; set; }
 
-        public List<IndexSnapshot> Indexes { get; set; } = new();
+        public List<IndexSnapshot>? Indexes { get; set; } = new();
 
-        public List<ForeignKeySnapshot> ForeignKeys { get; set; } = new();
+        public List<ForeignKeySnapshot>? ForeignKeys { get; set; } = new();
     }
 
     public sealed class ColumnSnapshot
