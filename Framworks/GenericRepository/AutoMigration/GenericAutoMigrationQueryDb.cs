@@ -2,34 +2,30 @@ using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
-using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Migrations.Operations;
 using Microsoft.Extensions.DependencyInjection;
+using GenericRepository.Models.AutoMigration;
+using System.Collections.Generic;
 using System.Text.Json;
-using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using Microsoft.EntityFrameworkCore.Metadata.Conventions;
-using Microsoft.EntityFrameworkCore.Storage;
-using Microsoft.EntityFrameworkCore.Design;
+using GenericRepository.Context;
 
+//using Newtonsoft.Json;
 
-
-namespace GenericRepository.Context.ComareMigration
+namespace GenericRepository.AutoMigration
 {
-
-
-    public sealed class GenericAutoMigrationCommandDb
+    public sealed class GenericAutoMigrationQueryDb
     {
         private const string SnapshotSchema = "dbo";
         private const string SnapshotTable = "__GenericRepositorySchemaSnapshot";
         private readonly string DbName;
 
 
-        private readonly GenericCommandDbContext _dbContext;
+        private readonly GenericQueryDbContext _dbContext;
         private readonly IMigrationsSqlGenerator _sqlGenerator;
 
-        public GenericAutoMigrationCommandDb(
-             GenericCommandDbContext dbContext)
+        public GenericAutoMigrationQueryDb(
+             GenericQueryDbContext dbContext)
         {
             _dbContext = dbContext;
 
@@ -463,6 +459,7 @@ namespace GenericRepository.Context.ComareMigration
                 if (string.IsNullOrWhiteSpace(tableName))
                     continue;
 
+
                 var schema =
                     tableMapping.Table.Schema ?? "dbo";
 
@@ -501,7 +498,6 @@ namespace GenericRepository.Context.ComareMigration
 
                     if (columnMapping != null)
                         return columnMapping.Column.Name;
-
 
                     columnMapping =
                         mapping.ColumnMappings
@@ -660,6 +656,9 @@ namespace GenericRepository.Context.ComareMigration
                 }
 
 
+                // ============================================================
+                // 3. Primary Key
+                // ============================================================
 
                 var primaryKey =
     entity.FindPrimaryKey();
@@ -703,6 +702,9 @@ namespace GenericRepository.Context.ComareMigration
 
 
 
+                // ============================================================
+                // 4. Indexes
+                // ============================================================
 
                 foreach (var index in entity.GetIndexes())
                 {
@@ -727,7 +729,6 @@ namespace GenericRepository.Context.ComareMigration
                                     return mapping.Column.Name;
 
 
-
                                 mapping =
                                     tableMapping.ColumnMappings
                                         .FirstOrDefault(x =>
@@ -742,7 +743,6 @@ namespace GenericRepository.Context.ComareMigration
                             .ToList();
 
 
-                    
 
                     var isDescending =
                         index.IsDescending?
@@ -1150,117 +1150,4 @@ namespace GenericRepository.Context.ComareMigration
         }
     }
 
-
-
-    public sealed class TableSnapshotSerialized
-    {
-        public int Id { get; set; }
-        public string? TableName { get; set; } = string.Empty;
-
-        public string? SchemaName { get; set; } = "dbo";
-
-        public string? JsonColumns { get; set; }
-
-        public string? JsonPrimaryKey { get; set; }
-
-        public string? JsonIndexes { get; set; }
-
-        public string? JsonForeignKeys { get; set; }
-        public DateTime? UpdatedAt { get; set; }
-
-    }
-
-
-
-    public sealed class SchemaSnapshot
-    {
-        public List<TableSnapshot> Tables { get; set; } = new();
-    }
-
-    public sealed class TableSnapshot
-    {
-        public string? Name { get; set; } = string.Empty;
-
-        public string? Schema { get; set; } = "dbo";
-
-        public List<ColumnSnapshot>? Columns { get; set; } = new();
-
-        public PrimaryKeySnapshot? PrimaryKey { get; set; }
-
-        public List<IndexSnapshot>? Indexes { get; set; } = new();
-
-        public List<ForeignKeySnapshot>? ForeignKeys { get; set; } = new();
-    }
-
-    public sealed class ColumnSnapshot
-    {
-        public bool IsIdentity { get; set; } = false;
-
-        public string Name { get; set; } = string.Empty;
-
-        public string ClrType { get; set; } = string.Empty;
-
-        public string? ColumnType { get; set; }
-
-        public bool IsNullable { get; set; }
-
-        public int? MaxLength { get; set; }
-
-        public bool? IsUnicode { get; set; }
-
-        public bool? IsFixedLength { get; set; }
-
-        public int? Precision { get; set; }
-
-        public int? Scale { get; set; }
-
-        public object? DefaultValue { get; set; }
-
-        public string? DefaultValueSql { get; set; }
-
-        public string? ComputedColumnSql { get; set; }
-
-        public bool? IsStored { get; set; }
-
-        public bool IsRowVersion { get; set; }
-
-        public Dictionary<string, object?> Annotations { get; set; }
-            = new();
-    }
-
-    public sealed class PrimaryKeySnapshot
-    {
-        public string? Name { get; set; }
-
-        public List<string> Columns { get; set; } = new();
-    }
-
-    public sealed class IndexSnapshot
-    {
-        public string Name { get; set; } = string.Empty;
-
-        public List<string>? Columns { get; set; } = new();
-
-        public bool? IsUnique { get; set; } = false;
-
-        public bool[]? IsDescending { get; set; } = Array.Empty<bool>();
-
-        public string? Filter { get; set; }
-    }
-
-    public sealed class ForeignKeySnapshot
-    {
-        public string Name { get; set; } = string.Empty;
-
-        public List<string> Columns { get; set; } = new();
-
-        public string PrincipalSchema { get; set; } = "dbo";
-
-        public string PrincipalTable { get; set; } = string.Empty;
-
-        public List<string> PrincipalColumns { get; set; } = new();
-
-        public DeleteBehavior DeleteBehavior { get; set; }
-    }
 }
-

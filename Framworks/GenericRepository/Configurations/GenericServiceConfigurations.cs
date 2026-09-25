@@ -1,5 +1,5 @@
+using GenericRepository.AutoMigration;
 using GenericRepository.Context;
-using GenericRepository.Context.ComareMigration;
 using GenericRepository.Contracts.Generic;
 using GenericRepository.Contracts.GenericCleanArchitecture;
 using GenericRepository.Repositories.Generic;
@@ -20,6 +20,7 @@ namespace GenericRepository.Configurations
         }
 
         public static void AddGenericConfigurations(this IServiceCollection services,
+
             string CommandDbConnectionString, string QueryDbConnectionString, AssembliesSetting assemblies)
         {
             DbConnectionSetting setting = new()
@@ -31,8 +32,9 @@ namespace GenericRepository.Configurations
             services.AddLifeCycles();
         }
 
-        public static void AddGenericConfigurations(this IServiceCollection services,
+        
 
+        public static void AddGenericConfigurations(this IServiceCollection services,
             string ConnectionString, AssembliesSetting assemblies)
         {
             DbConnectionSetting setting = new()
@@ -74,7 +76,12 @@ namespace GenericRepository.Configurations
                 !string.IsNullOrEmpty(setting.QueryConnectionString))
                 services.AddDbContext<GenericCommandDbContext>(option =>
                 {
-                    option.UseSqlServer(setting.QueryConnectionString);
+                    option.UseSqlServer(setting.QueryConnectionString,
+                        sqlOptions =>
+                        {
+                            sqlOptions.MigrationsAssembly(
+                                typeof(GenericCommandDbContext).Assembly.FullName);
+                        });
                 });
 
 
@@ -82,13 +89,23 @@ namespace GenericRepository.Configurations
                 !string.IsNullOrEmpty(setting.QueryConnectionString))
                 services.AddDbContext<GenericQueryDbContext>(option =>
                 {
-                    option.UseSqlServer(setting.QueryConnectionString);
+                    option.UseSqlServer(setting.QueryConnectionString,
+                        sqlOptions =>
+                        {
+                            sqlOptions.MigrationsAssembly(
+                                typeof(GenericQueryDbContext).Assembly.FullName);
+                        });
                 });
-            else if(setting != null &&
+            else if (setting != null &&
                 !string.IsNullOrEmpty(setting.CommandConnectionString))
                 services.AddDbContext<GenericQueryDbContext>(option =>
                 {
-                    option.UseSqlServer(setting.CommandConnectionString);
+                    option.UseSqlServer(setting.CommandConnectionString,
+                        sqlOptions =>
+                        {
+                            sqlOptions.MigrationsAssembly(
+                                typeof(GenericQueryDbContext).Assembly.FullName);
+                        });
                 });
 
 
