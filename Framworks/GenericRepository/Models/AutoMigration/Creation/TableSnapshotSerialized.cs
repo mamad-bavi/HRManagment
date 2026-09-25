@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace GenericRepository.Models.AutoMigration
+namespace GenericRepository.Models.AutoMigration.Creation
 {
     public sealed class TableSnapshotSerialized
     {

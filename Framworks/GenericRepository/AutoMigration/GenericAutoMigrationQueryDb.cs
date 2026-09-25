@@ -1,3 +1,5 @@
+using GenericRepository.Context;
+using GenericRepository.Models.AutoMigration.Creation;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
@@ -5,12 +7,7 @@ using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Migrations.Operations;
 using Microsoft.Extensions.DependencyInjection;
-using GenericRepository.Models.AutoMigration;
-using System.Collections.Generic;
 using System.Text.Json;
-using GenericRepository.Context;
-
-//using Newtonsoft.Json;
 
 namespace GenericRepository.AutoMigration
 {
@@ -40,39 +37,24 @@ namespace GenericRepository.AutoMigration
         public async Task SynchronizeAsync(
     CancellationToken cancellationToken = default)
         {
-            Console.WriteLine("===== AUTO MIGRATION START =====");
-
             try
             {
-                Console.WriteLine("STEP 1 - Before SyncAsync");
-
                 await SyncAsync(cancellationToken);
-
-                Console.WriteLine("STEP 2 - After SyncAsync");
             }
             catch (Exception ex)
             {
-                Console.WriteLine("===== AUTO MIGRATION ERROR =====");
-                Console.WriteLine(ex.ToString());
-
                 throw;
             }
-
-            Console.WriteLine("===== AUTO MIGRATION END =====");
         }
 
         public async Task SyncAsync(
             CancellationToken cancellationToken = default)
         {
-            //await _dbContext.Database.EnsureCreatedAsync(
-            //    cancellationToken);
-
             if (!await _dbContext.Database.CanConnectAsync(cancellationToken))
             {
                 await _dbContext.Database.EnsureCreatedAsync(
                     cancellationToken);
             }
-
 
             var currentSnapshot = CreateSnapshot();
 

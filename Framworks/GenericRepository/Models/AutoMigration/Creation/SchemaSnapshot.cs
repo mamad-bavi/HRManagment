@@ -1,4 +1,4 @@
-﻿namespace GenericRepository.Models.AutoMigration
+﻿namespace GenericRepository.Models.AutoMigration.Creation
 {
     public sealed class SchemaSnapshot
     {
