@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Migrations.Operations;
 using Microsoft.Extensions.DependencyInjection;
+using System.Data;
 using System.Text.Json;
 
 namespace GenericRepository.AutoMigration
@@ -14,52 +15,100 @@ namespace GenericRepository.AutoMigration
     public sealed class GenericAutoMigrationQueryDb
     {
         private const string SnapshotSchema = "dbo";
-        private const string SnapshotTable = "__GenericRepositorySchemaSnapshot";
+        private const string SnapshotTable =
+            "__GenericRepositorySchemaSnapshot";
+
         private readonly string DbName;
 
-
         private readonly GenericQueryDbContext _dbContext;
+
         private readonly IMigrationsSqlGenerator _sqlGenerator;
 
         public GenericAutoMigrationQueryDb(
-             GenericQueryDbContext dbContext)
+            GenericQueryDbContext dbContext)
         {
             _dbContext = dbContext;
 
-            _sqlGenerator = dbContext
-                .GetInfrastructure()
-                .GetRequiredService<IMigrationsSqlGenerator>();
+            _sqlGenerator =
+                dbContext
+                    .GetInfrastructure()
+                    .GetRequiredService<IMigrationsSqlGenerator>();
 
-            DbName = _dbContext.Database.GetDbConnection().Database;
-
+            DbName =
+                _dbContext
+                    .Database
+                    .GetDbConnection()
+                    .Database;
         }
 
+        // ================================================================
+        // PUBLIC
+        // ================================================================
+
         public async Task SynchronizeAsync(
-    CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default)
         {
+            Console.WriteLine(
+                "===== AUTO MIGRATION START =====");
+
             try
             {
-                await SyncAsync(cancellationToken);
+                Console.WriteLine(
+                    "STEP 1 - Before SyncAsync");
+
+                await SyncAsync(
+                    cancellationToken);
+
+                Console.WriteLine(
+                    "STEP 2 - After SyncAsync");
             }
             catch (Exception ex)
             {
+                Console.WriteLine(
+                    "===== AUTO MIGRATION ERROR =====");
+
+                Console.WriteLine(
+                    ex);
+
                 throw;
             }
+
+            Console.WriteLine(
+                "===== AUTO MIGRATION END =====");
         }
 
         public async Task SyncAsync(
             CancellationToken cancellationToken = default)
         {
-            if (!await _dbContext.Database.CanConnectAsync(cancellationToken))
+            // ============================================================
+            // 1. Database
+            // ============================================================
+
+            if (!await _dbContext.Database.CanConnectAsync(
+                    cancellationToken))
             {
                 await _dbContext.Database.EnsureCreatedAsync(
                     cancellationToken);
             }
 
-            var currentSnapshot = CreateSnapshot();
+            // ============================================================
+            // 2. Current EF Model Snapshot
+            // ============================================================
+
+            var currentSnapshot =
+                CreateSnapshot();
+
+            // ============================================================
+            // 3. Previous Snapshot
+            // ============================================================
 
             var previousSnapshot =
-                await LoadSnapshotAsync(cancellationToken);
+                await LoadSnapshotAsync(
+                    cancellationToken);
+
+            // ============================================================
+            // 4. First Run
+            // ============================================================
 
             if (previousSnapshot == null)
             {
@@ -70,12 +119,29 @@ namespace GenericRepository.AutoMigration
                 return;
             }
 
-            var operations = BuildOperations(
-                previousSnapshot,
-                currentSnapshot);
+            // ============================================================
+            // 5. Build Migration Operations
+            // ============================================================
+
+            var operations =
+                BuildOperations(
+                    previousSnapshot,
+                    currentSnapshot);
 
             if (operations.Count == 0)
+            {
+                Console.WriteLine(
+                    "No schema changes detected.");
+
                 return;
+            }
+
+            Console.WriteLine(
+                $"Detected {operations.Count} migration operation(s).");
+
+            // ============================================================
+            // 6. Transaction
+            // ============================================================
 
             await using var transaction =
                 await _dbContext.Database.BeginTransactionAsync(
@@ -83,37 +149,65 @@ namespace GenericRepository.AutoMigration
 
             try
             {
+                // ========================================================
+                // 7. Application Lock
+                // ========================================================
+
                 await AcquireApplicationLockAsync(
                     cancellationToken);
 
-                var commands = _sqlGenerator.Generate(
-                    operations,
-                    _dbContext.Model);
+                // ========================================================
+                // 8. Generate SQL
+                // ========================================================
+
+                var commands =
+                    _sqlGenerator.Generate(
+                        operations,
+                        _dbContext.Model);
+
+                // ========================================================
+                // 9. Execute SQL
+                // ========================================================
 
                 foreach (var command in commands)
                 {
-                    if (string.IsNullOrWhiteSpace(command.CommandText))
+                    if (string.IsNullOrWhiteSpace(
+                            command.CommandText))
+                    {
                         continue;
+                    }
+
+                    Console.WriteLine(
+                        "----------------------------------------");
+
+                    Console.WriteLine(
+                        command.CommandText);
+
+                    Console.WriteLine(
+                        "----------------------------------------");
 
                     await _dbContext.Database.ExecuteSqlRawAsync(
                         command.CommandText,
                         cancellationToken);
-
-                    //ExecuteSqlRawAsync
-
-
                 }
+
+                // ========================================================
+                // 10. Save Snapshot ONLY after successful migration
+                // ========================================================
 
                 await SaveSnapshotAsync(
                     currentSnapshot,
                     cancellationToken);
 
+                // ========================================================
+                // 11. Commit
+                // ========================================================
+
                 await transaction.CommitAsync(
                     cancellationToken);
             }
-            catch (Exception e)
+            catch
             {
-                var ee = e.Message;
                 await transaction.RollbackAsync(
                     cancellationToken);
 
@@ -121,26 +215,116 @@ namespace GenericRepository.AutoMigration
             }
         }
 
-
+        // ================================================================
+        // BUILD OPERATIONS
+        // ================================================================
 
         private List<MigrationOperation> BuildOperations(
-            SchemaSnapshot oldSnapshot,
-            SchemaSnapshot newSnapshot)
+     SchemaSnapshot oldSnapshot,
+     SchemaSnapshot newSnapshot)
         {
-            var operations = new List<MigrationOperation>();
+            var operations =
+                new List<MigrationOperation>();
 
-            operations.AddRange(AddNewTables(oldSnapshot, newSnapshot, operations));
+            // ============================================================
+            // DROP PHASE
+            // ============================================================
 
-            operations.AddRange(AddNewColumns(oldSnapshot, newSnapshot, operations));
+            // 1. Foreign Keys
+            // FK ها باید قبل از حذف Table / Column حذف شوند.
+            operations.AddRange(AddDeletedForeignKeys(
+                oldSnapshot,
+                newSnapshot,
+                operations));
 
-            operations.AddRange(AddNewIndexes(oldSnapshot, newSnapshot, operations));
+            operations.AddRange(AddChangedForeignKeys(
+                oldSnapshot,
+                newSnapshot,
+                operations));
 
-            operations.AddRange(AddNewForeignKeys(oldSnapshot, newSnapshot, operations));
+            // 2. Indexes
+            operations.AddRange(AddDeletedIndexes(
+                oldSnapshot,
+                newSnapshot,
+                operations));
 
-            return operations.Distinct().ToList();
+            operations.AddRange(AddChangedIndexes(
+                oldSnapshot,
+                newSnapshot,
+                operations));
+
+            // 3. Primary Keys
+            operations.AddRange(AddDeletedPrimaryKeys(
+                oldSnapshot,
+                newSnapshot,
+                operations));
+
+            operations.AddRange(AddChangedPrimaryKeys(
+                oldSnapshot,
+                newSnapshot,
+                operations));
+
+            // 4. Columns
+            operations.AddRange(AddDeletedColumns(
+                oldSnapshot,
+                newSnapshot,
+                operations));
+
+            operations.AddRange(AddModifiedColumns(
+                oldSnapshot,
+                newSnapshot,
+                operations));
+
+            // 5. Tables
+            operations.AddRange(AddDeletedTables(
+                oldSnapshot,
+                newSnapshot,
+                operations));
+
+
+            // ============================================================
+            // CREATE PHASE
+            // ============================================================
+
+            // 6. Tables
+            operations.AddRange(AddNewTables(
+                oldSnapshot,
+                newSnapshot,
+                operations));
+
+            // 7. Columns
+            operations.AddRange(AddNewColumns(
+                oldSnapshot,
+                newSnapshot,
+                operations));
+
+            // 8. Primary Keys
+            operations.AddRange(AddNewPrimaryKeys(
+                oldSnapshot,
+                newSnapshot,
+                operations));
+
+            // 9. Indexes
+            operations.AddRange(AddNewIndexes(
+                oldSnapshot,
+                newSnapshot,
+                operations));
+
+            // 10. Foreign Keys
+            operations.AddRange(AddNewForeignKeys(
+                oldSnapshot,
+                newSnapshot,
+                operations));
+
+            return operations
+                .Distinct()
+                .ToList();
         }
 
 
+        // ================================================================
+        // NEW TABLES
+        // ================================================================
 
         private List<MigrationOperation> AddNewTables(
             SchemaSnapshot oldSnapshot,
@@ -149,50 +333,74 @@ namespace GenericRepository.AutoMigration
         {
             foreach (var table in newSnapshot.Tables)
             {
-                var oldTable = oldSnapshot.Tables
-                    .FirstOrDefault(x =>
-                        x.Schema == table.Schema &&
-                        x.Name == table.Name);
+                var oldTable =
+                    oldSnapshot.Tables.FirstOrDefault(
+                        x =>
+                            string.Equals(
+                                x.Schema,
+                                table.Schema,
+                                StringComparison.OrdinalIgnoreCase)
+                            &&
+                            string.Equals(
+                                x.Name,
+                                table.Name,
+                                StringComparison.OrdinalIgnoreCase));
 
                 if (oldTable != null)
                     continue;
 
-                var createTable = new CreateTableOperation
-                {
-                    Name = table.Name,
-                    Schema = table.Schema
-                };
+                var createTable =
+                    new CreateTableOperation
+                    {
+                        Name = table.Name,
+                        Schema = table.Schema
+                    };
 
                 foreach (var column in table.Columns)
                 {
-                    var addColumn = CreateColumnOperation(
-                        table,
-                        column);
+                    var addColumn =
+                        CreateColumnOperation(
+                            table,
+                            column);
 
-                    createTable.Columns.Add(addColumn);
+                    createTable.Columns.Add(
+                        addColumn);
                 }
 
+                // --------------------------------------------------------
                 // Primary Key
+                // --------------------------------------------------------
+
                 if (table.PrimaryKey != null &&
                     table.PrimaryKey.Columns.Count > 0)
                 {
                     createTable.PrimaryKey =
                         new AddPrimaryKeyOperation
                         {
-                            Name = table.PrimaryKey.Name,
-                            Schema = table.Schema,
-                            Table = table.Name,
-                            Columns = table.PrimaryKey.Columns.ToArray()
+                            Name =
+                                table.PrimaryKey.Name,
+
+                            Schema =
+                                table.Schema,
+
+                            Table =
+                                table.Name,
+
+                            Columns =
+                                table.PrimaryKey.Columns.ToArray()
                         };
                 }
 
-                operations.Add(createTable);
+                operations.Add(
+                    createTable);
             }
 
             return operations;
-
         }
 
+        // ================================================================
+        // NEW COLUMNS
+        // ================================================================
 
         private List<MigrationOperation> AddNewColumns(
             SchemaSnapshot oldSnapshot,
@@ -201,18 +409,25 @@ namespace GenericRepository.AutoMigration
         {
             foreach (var table in newSnapshot.Tables)
             {
-                var oldTable = oldSnapshot.Tables
-                    .FirstOrDefault(x =>
-                        x.Schema == table.Schema &&
-                        x.Name == table.Name);
+                var oldTable =
+                    FindTable(
+                        oldSnapshot,
+                        table.Schema,
+                        table.Name);
 
+                // Entirely new table
                 if (oldTable == null)
                     continue;
 
                 foreach (var column in table.Columns)
                 {
-                    var exists = oldTable.Columns.Any(x =>
-                        x.Name == column.Name);
+                    var exists =
+                        oldTable.Columns.Any(
+                            x =>
+                                string.Equals(
+                                    x.Name,
+                                    column.Name,
+                                    StringComparison.OrdinalIgnoreCase));
 
                     if (exists)
                         continue;
@@ -227,52 +442,490 @@ namespace GenericRepository.AutoMigration
             return operations;
         }
 
-        private AddColumnOperation CreateColumnOperation(
-            TableSnapshot table,
-            ColumnSnapshot column)
+        // ================================================================
+        // DELETE TABLES
+        // ================================================================
+
+        private List<MigrationOperation> AddDeletedTables(
+            SchemaSnapshot oldSnapshot,
+            SchemaSnapshot newSnapshot,
+            List<MigrationOperation> operations)
         {
-            var operation = new AddColumnOperation
+            foreach (var oldTable in oldSnapshot.Tables)
             {
-                Name = column.Name,
-                Table = table.Name,
-                Schema = table.Schema,
+                var currentTable =
+                    FindTable(
+                        newSnapshot,
+                        oldTable.Schema,
+                        oldTable.Name);
 
-                ClrType = GetClrType(column.ClrType),
+                if (currentTable != null)
+                    continue;
 
-                ColumnType = column.ColumnType,
+                operations.Add(
+                    new DropTableOperation
+                    {
+                        Name =
+                            oldTable.Name,
 
-                IsNullable = column.IsNullable,
-
-                MaxLength = column.MaxLength,
-
-                IsUnicode = column.IsUnicode,
-
-                IsFixedLength = column.IsFixedLength,
-
-                Precision = column.Precision,
-
-                Scale = column.Scale,
-
-                DefaultValue = column.DefaultValue,
-
-                DefaultValueSql = column.DefaultValueSql,
-
-                ComputedColumnSql = column.ComputedColumnSql,
-
-                IsStored = column.IsStored,
-
-                IsRowVersion = column.IsRowVersion
-            };
-
-            foreach (var annotation in column.Annotations)
-            {
-                operation[annotation.Key] =
-                    annotation.Value;
+                        Schema =
+                            oldTable.Schema
+                    });
             }
 
-            return operation;
+            return operations;
         }
 
+        // ================================================================
+        // DELETE COLUMNS
+        // ================================================================
+
+        private List<MigrationOperation> AddDeletedColumns(
+            SchemaSnapshot oldSnapshot,
+            SchemaSnapshot newSnapshot,
+            List<MigrationOperation> operations)
+        {
+            foreach (var oldTable in oldSnapshot.Tables)
+            {
+                var currentTable =
+                    FindTable(
+                        newSnapshot,
+                        oldTable.Schema,
+                        oldTable.Name);
+
+                if (currentTable == null)
+                    continue;
+
+                foreach (var oldColumn in oldTable.Columns)
+                {
+                    var currentColumn =
+                        currentTable.Columns.FirstOrDefault(
+                            x =>
+                                string.Equals(
+                                    x.Name,
+                                    oldColumn.Name,
+                                    StringComparison.OrdinalIgnoreCase));
+
+                    if (currentColumn != null)
+                        continue;
+
+                    operations.Add(
+                        new DropColumnOperation
+                        {
+                            Name =
+                                oldColumn.Name,
+
+                            Table =
+                                oldTable.Name,
+
+                            Schema =
+                                oldTable.Schema
+                        });
+                }
+            }
+
+            return operations;
+        }
+
+        // ================================================================
+        // MODIFY COLUMNS
+        // ================================================================
+
+        private List<MigrationOperation> AddModifiedColumns(
+            SchemaSnapshot oldSnapshot,
+            SchemaSnapshot newSnapshot,
+            List<MigrationOperation> operations)
+        {
+            foreach (var currentTable in newSnapshot.Tables)
+            {
+                var oldTable =
+                    FindTable(
+                        oldSnapshot,
+                        currentTable.Schema,
+                        currentTable.Name);
+
+                if (oldTable == null)
+                    continue;
+
+                foreach (var newColumn in currentTable.Columns)
+                {
+                    var oldColumn =
+                        oldTable.Columns.FirstOrDefault(
+                            x =>
+                                string.Equals(
+                                    x.Name,
+                                    newColumn.Name,
+                                    StringComparison.OrdinalIgnoreCase));
+
+                    if (oldColumn == null)
+                        continue;
+
+                    if (AreColumnsEqual(
+                            oldColumn,
+                            newColumn))
+                    {
+                        continue;
+                    }
+
+                    var operation =
+                        new AlterColumnOperation
+                        {
+                            Name =
+                                newColumn.Name,
+
+                            Table =
+                                currentTable.Name,
+
+                            Schema =
+                                currentTable.Schema,
+
+                            ClrType =
+                                GetClrType(
+                                    newColumn.ClrType),
+
+                            ColumnType =
+                                newColumn.ColumnType,
+
+                            IsNullable =
+                                newColumn.IsNullable,
+
+                            MaxLength =
+                                newColumn.MaxLength,
+
+                            IsUnicode =
+                                newColumn.IsUnicode,
+
+                            IsFixedLength =
+                                newColumn.IsFixedLength,
+
+                            Precision =
+                                newColumn.Precision,
+
+                            Scale =
+                                newColumn.Scale,
+
+                            DefaultValue =
+                                NormalizeJsonValue(
+                                    newColumn.DefaultValue),
+
+                            DefaultValueSql =
+                                newColumn.DefaultValueSql,
+
+                            ComputedColumnSql =
+                                newColumn.ComputedColumnSql,
+
+                            IsStored =
+                                newColumn.IsStored,
+
+                            IsRowVersion =
+                                newColumn.IsRowVersion,
+
+                            OldColumn =
+                                CreateColumnOperation(
+                                    oldTable,
+                                    oldColumn)
+                        };
+
+                    foreach (var annotation in
+                             newColumn.Annotations)
+                    {
+                        operation[annotation.Key] =
+                            annotation.Value;
+                    }
+
+                    operations.Add(
+                        operation);
+                }
+            }
+
+            return operations;
+        }
+
+        // ================================================================
+        // PRIMARY KEY - DELETE
+        // ================================================================
+
+        private List<MigrationOperation> AddDeletedPrimaryKeys(
+            SchemaSnapshot oldSnapshot,
+            SchemaSnapshot newSnapshot,
+            List<MigrationOperation> operations)
+        {
+            foreach (var oldTable in oldSnapshot.Tables)
+            {
+                var currentTable =
+                    FindTable(
+                        newSnapshot,
+                        oldTable.Schema,
+                        oldTable.Name);
+
+                if (currentTable == null)
+                    continue;
+
+                if (oldTable.PrimaryKey == null)
+                    continue;
+
+                if (currentTable.PrimaryKey != null)
+                    continue;
+
+                operations.Add(
+                    new DropPrimaryKeyOperation
+                    {
+                        Name =
+                            oldTable.PrimaryKey.Name,
+
+                        Schema =
+                            oldTable.Schema,
+
+                        Table =
+                            oldTable.Name
+                    });
+            }
+
+            return operations;
+        }
+
+        // ================================================================
+        // PRIMARY KEY - CHANGE
+        // ================================================================
+
+        private List<MigrationOperation> AddChangedPrimaryKeys(
+            SchemaSnapshot oldSnapshot,
+            SchemaSnapshot newSnapshot,
+            List<MigrationOperation> operations)
+        {
+            foreach (var currentTable in newSnapshot.Tables)
+            {
+                var oldTable =
+                    FindTable(
+                        oldSnapshot,
+                        currentTable.Schema,
+                        currentTable.Name);
+
+                if (oldTable == null)
+                    continue;
+
+                var oldPk =
+                    oldTable.PrimaryKey;
+
+                var newPk =
+                    currentTable.PrimaryKey;
+
+                if (oldPk == null ||
+                    newPk == null)
+                {
+                    continue;
+                }
+
+                if (ArePrimaryKeysEqual(
+                        oldPk,
+                        newPk))
+                {
+                    continue;
+                }
+
+                operations.Add(
+                    new DropPrimaryKeyOperation
+                    {
+                        Name =
+                            oldPk.Name,
+
+                        Schema =
+                            currentTable.Schema,
+
+                        Table =
+                            currentTable.Name
+                    });
+
+                operations.Add(
+                    new AddPrimaryKeyOperation
+                    {
+                        Name =
+                            newPk.Name,
+
+                        Schema =
+                            currentTable.Schema,
+
+                        Table =
+                            currentTable.Name,
+
+                        Columns =
+                            newPk.Columns.ToArray()
+                    });
+            }
+
+            return operations;
+        }
+
+        // ================================================================
+        // PRIMARY KEY - NEW
+        // ================================================================
+
+        private List<MigrationOperation> AddNewPrimaryKeys(
+            SchemaSnapshot oldSnapshot,
+            SchemaSnapshot newSnapshot,
+            List<MigrationOperation> operations)
+        {
+            foreach (var currentTable in newSnapshot.Tables)
+            {
+                var oldTable =
+                    FindTable(
+                        oldSnapshot,
+                        currentTable.Schema,
+                        currentTable.Name);
+
+                if (oldTable == null)
+                    continue;
+
+                if (oldTable.PrimaryKey != null)
+                    continue;
+
+                var newPk =
+                    currentTable.PrimaryKey;
+
+                if (newPk == null ||
+                    newPk.Columns.Count == 0)
+                {
+                    continue;
+                }
+
+                operations.Add(
+                    new AddPrimaryKeyOperation
+                    {
+                        Name =
+                            newPk.Name,
+
+                        Schema =
+                            currentTable.Schema,
+
+                        Table =
+                            currentTable.Name,
+
+                        Columns =
+                            newPk.Columns.ToArray()
+                    });
+            }
+            return operations;
+        }
+
+        // ================================================================
+        // INDEX - DELETE
+        // ================================================================
+
+        private List<MigrationOperation> AddDeletedIndexes(
+            SchemaSnapshot oldSnapshot,
+            SchemaSnapshot newSnapshot,
+            List<MigrationOperation> operations)
+        {
+            foreach (var oldTable in oldSnapshot.Tables)
+            {
+                var currentTable =
+                    FindTable(
+                        newSnapshot,
+                        oldTable.Schema,
+                        oldTable.Name);
+
+                if (currentTable == null)
+                    continue;
+
+                foreach (var oldIndex in oldTable.Indexes)
+                {
+                    var currentIndex =
+                        currentTable.Indexes.FirstOrDefault(
+                            x =>
+                                string.Equals(
+                                    x.Name,
+                                    oldIndex.Name,
+                                    StringComparison.OrdinalIgnoreCase));
+
+                    if (currentIndex != null)
+                        continue;
+
+                    operations.Add(
+                        new DropIndexOperation
+                        {
+                            Name =
+                                oldIndex.Name,
+
+                            Schema =
+                                oldTable.Schema,
+
+                            Table =
+                                oldTable.Name
+                        });
+                }
+            }
+
+            return operations;
+        }
+
+        // ================================================================
+        // INDEX - CHANGE
+        // ================================================================
+
+        private List<MigrationOperation> AddChangedIndexes(
+            SchemaSnapshot oldSnapshot,
+            SchemaSnapshot newSnapshot,
+            List<MigrationOperation> operations)
+        {
+            foreach (var currentTable in newSnapshot.Tables)
+            {
+                var oldTable =
+                    FindTable(
+                        oldSnapshot,
+                        currentTable.Schema,
+                        currentTable.Name);
+
+                if (oldTable == null)
+                    continue;
+
+                foreach (var newIndex in currentTable.Indexes)
+                {
+                    var oldIndex =
+                        oldTable.Indexes.FirstOrDefault(
+                            x =>
+                                string.Equals(
+                                    x.Name,
+                                    newIndex.Name,
+                                    StringComparison.OrdinalIgnoreCase));
+
+                    if (oldIndex == null)
+                        continue;
+
+                    if (AreIndexesEqual(
+                            oldIndex,
+                            newIndex))
+                    {
+                        continue;
+                    }
+
+                    // Drop old
+                    operations.Add(
+                        new DropIndexOperation
+                        {
+                            Name =
+                                oldIndex.Name,
+
+                            Schema =
+                                currentTable.Schema,
+
+                            Table =
+                                currentTable.Name
+                        });
+
+                    // Create new
+                    operations.Add(
+                        CreateIndexOperation(
+                            currentTable,
+                            newIndex));
+                }
+            }
+
+            return operations;
+        }
+
+        // ================================================================
+        // INDEX - NEW
+        // ================================================================
 
         private List<MigrationOperation> AddNewIndexes(
             SchemaSnapshot oldSnapshot,
@@ -281,105 +934,853 @@ namespace GenericRepository.AutoMigration
         {
             foreach (var table in newSnapshot.Tables)
             {
-                var oldTable = oldSnapshot.Tables
-                    .FirstOrDefault(x =>
-                        x.Schema == table.Schema &&
-                        x.Name == table.Name);
+                var oldTable =
+                    FindTable(
+                        oldSnapshot,
+                        table.Schema,
+                        table.Name);
 
+                // New table:
+                // indexes are handled here.
                 if (oldTable == null)
                 {
-                    oldTable = new TableSnapshot
-                    {
-                        Name = table.Name,
-                        Schema = table.Schema
-                    };
+                    oldTable =
+                        new TableSnapshot
+                        {
+                            Name =
+                                table.Name,
+
+                            Schema =
+                                table.Schema
+                        };
                 }
 
                 foreach (var index in table.Indexes)
                 {
-                    var exists = oldTable.Indexes.Any(x =>
-                        x.Name == index.Name);
+                    var exists =
+                        oldTable.Indexes.Any(
+                            x =>
+                                string.Equals(
+                                    x.Name,
+                                    index.Name,
+                                    StringComparison.OrdinalIgnoreCase));
 
                     if (exists)
                         continue;
 
                     operations.Add(
-                        new CreateIndexOperation
-                        {
-                            Name = index.Name,
-                            Schema = table.Schema,
-                            Table = table.Name,
-
-                            Columns = index.Columns.ToArray(),
-
-                            IsUnique = index.IsUnique.Value,
-
-                            IsDescending =
-                                index.IsDescending.ToArray(),
-
-                            Filter = index.Filter
-                        });
+                        CreateIndexOperation(
+                            table,
+                            index));
                 }
             }
-
 
             return operations;
         }
 
+        // ================================================================
+        // FK - DELETE
+        // ================================================================
+
+        private List<MigrationOperation> AddDeletedForeignKeys(
+    SchemaSnapshot oldSnapshot,
+    SchemaSnapshot newSnapshot,
+    List<MigrationOperation> operations)
+        {
+            foreach (var oldTable in oldSnapshot.Tables)
+            {
+                foreach (var oldForeignKey in oldTable.ForeignKeys)
+                {
+                    // --------------------------------------------------------
+                    // پیدا کردن جدول فعلی
+                    // --------------------------------------------------------
+
+                    var currentTable =
+                        FindTable(
+                            newSnapshot,
+                            oldTable.Schema,
+                            oldTable.Name);
+
+                    // --------------------------------------------------------
+                    // اگر جدول وابسته کلاً حذف شده
+                    // FK همراه Table حذف می‌شود.
+                    //
+                    // بنابراین DropForeignKey جداگانه لازم نیست.
+                    // --------------------------------------------------------
+
+                    if (currentTable == null)
+                        continue;
+
+                    // --------------------------------------------------------
+                    // آیا FK هنوز وجود دارد؟
+                    // --------------------------------------------------------
+
+                    var currentForeignKey =
+                        currentTable.ForeignKeys.FirstOrDefault(
+                            x =>
+                                string.Equals(
+                                    x.Name,
+                                    oldForeignKey.Name,
+                                    StringComparison.OrdinalIgnoreCase));
+
+                    // --------------------------------------------------------
+                    // FK هنوز وجود دارد
+                    // --------------------------------------------------------
+
+                    if (currentForeignKey != null)
+                        continue;
+
+                    // --------------------------------------------------------
+                    // FK حذف شده
+                    // --------------------------------------------------------
+
+                    operations.Add(
+                        new DropForeignKeyOperation
+                        {
+                            Name =
+                                oldForeignKey.Name,
+
+                            Schema =
+                                oldTable.Schema,
+
+                            Table =
+                                oldTable.Name
+                        });
+                }
+            }
+
+            // ================================================================
+            // VERY IMPORTANT
+            //
+            // اگر جدول Principal حذف شده باشد ولی جدول Dependent هنوز
+            // وجود داشته باشد، FK باید از جدول Dependent حذف شود.
+            //
+            // مثال:
+            //
+            // UserRole.RoleId
+            //      ↓
+            // Role.Id
+            //
+            // Role حذف شده
+            // UserRole هنوز هست
+            //
+            // بنابراین FK باید Drop شود.
+            // ================================================================
+
+            foreach (var oldTable in oldSnapshot.Tables)
+            {
+                var currentDependentTable =
+                    FindTable(
+                        newSnapshot,
+                        oldTable.Schema,
+                        oldTable.Name);
+
+                // اگر خود جدول Dependent حذف شده،
+                // نیازی به DropForeignKey نیست.
+                if (currentDependentTable == null)
+                    continue;
+
+                foreach (var oldForeignKey in oldTable.ForeignKeys)
+                {
+                    // Principal table در Snapshot جدید وجود دارد؟
+                    var principalTable =
+                        FindTable(
+                            newSnapshot,
+                            oldForeignKey.PrincipalSchema,
+                            oldForeignKey.PrincipalTable);
+
+                    // Principal هنوز وجود دارد
+                    if (principalTable != null)
+                        continue;
+
+                    // --------------------------------------------------------
+                    // Principal حذف شده
+                    // FK باید حذف شود.
+                    // --------------------------------------------------------
+
+                    var alreadyAdded =
+                        operations
+                            .OfType<DropForeignKeyOperation>()
+                            .Any(
+                                x =>
+                                    string.Equals(
+                                        x.Name,
+                                        oldForeignKey.Name,
+                                        StringComparison.OrdinalIgnoreCase)
+                                    &&
+                                    string.Equals(
+                                        x.Table,
+                                        oldTable.Name,
+                                        StringComparison.OrdinalIgnoreCase)
+                                    &&
+                                    string.Equals(
+                                        x.Schema,
+                                        oldTable.Schema,
+                                        StringComparison.OrdinalIgnoreCase));
+
+                    if (alreadyAdded)
+                        continue;
+
+                    operations.Add(
+                        new DropForeignKeyOperation
+                        {
+                            Name =
+                                oldForeignKey.Name,
+
+                            Schema =
+                                oldTable.Schema,
+
+                            Table =
+                                oldTable.Name
+                        });
+                }
+            }
+
+            return operations;
+        }
+        // ================================================================
+        // FK - CHANGE
+        // ================================================================
+
+        private List<MigrationOperation> AddChangedForeignKeys(
+            SchemaSnapshot oldSnapshot,
+            SchemaSnapshot newSnapshot,
+            List<MigrationOperation> operations)
+        {
+            foreach (var currentTable in newSnapshot.Tables)
+            {
+                var oldTable =
+                    FindTable(
+                        oldSnapshot,
+                        currentTable.Schema,
+                        currentTable.Name);
+
+                if (oldTable == null)
+                    continue;
+
+                foreach (var newForeignKey in
+                         currentTable.ForeignKeys)
+                {
+                    var oldForeignKey =
+                        oldTable.ForeignKeys.FirstOrDefault(
+                            x =>
+                                string.Equals(
+                                    x.Name,
+                                    newForeignKey.Name,
+                                    StringComparison.OrdinalIgnoreCase));
+
+                    if (oldForeignKey == null)
+                        continue;
+
+                    if (AreForeignKeysEqual(
+                            oldForeignKey,
+                            newForeignKey))
+                    {
+                        continue;
+                    }
+
+                    operations.Add(
+                        new DropForeignKeyOperation
+                        {
+                            Name =
+                                oldForeignKey.Name,
+
+                            Schema =
+                                currentTable.Schema,
+
+                            Table =
+                                currentTable.Name
+                        });
+
+                    operations.Add(
+                        CreateForeignKeyOperation(
+                            currentTable,
+                            newForeignKey));
+                }
+            }
+
+            return operations;
+        }
+
+        // ================================================================
+        // FK - NEW
+        // ================================================================
 
         private List<MigrationOperation> AddNewForeignKeys(
             SchemaSnapshot oldSnapshot,
             SchemaSnapshot newSnapshot,
             List<MigrationOperation> operations)
         {
-
             foreach (var table in newSnapshot.Tables)
             {
-                var oldTable = oldSnapshot.Tables
-                    .FirstOrDefault(x =>
-                        x.Schema == table.Schema &&
-                        x.Name == table.Name);
+                var oldTable =
+                    FindTable(
+                        oldSnapshot,
+                        table.Schema,
+                        table.Name);
 
-                foreach (var foreignKey in table.ForeignKeys)
+                foreach (var foreignKey in
+                         table.ForeignKeys)
                 {
                     var exists =
-                        oldTable?.ForeignKeys.Any(x =>
-                            x.Name == foreignKey.Name) == true;
+                        oldTable?.ForeignKeys.Any(
+                            x =>
+                                string.Equals(
+                                    x.Name,
+                                    foreignKey.Name,
+                                    StringComparison.OrdinalIgnoreCase))
+                        == true;
 
                     if (exists)
                         continue;
 
                     operations.Add(
-                        new AddForeignKeyOperation
-                        {
-                            Name = foreignKey.Name,
-
-                            Schema = table.Schema,
-
-                            Table = table.Name,
-
-                            Columns =
-                                foreignKey.Columns.ToArray(),
-
-                            PrincipalSchema =
-                                foreignKey.PrincipalSchema,
-
-                            PrincipalTable =
-                                foreignKey.PrincipalTable,
-
-                            PrincipalColumns =
-                                foreignKey.PrincipalColumns.ToArray(),
-
-                            OnDelete =
-                                ConvertDeleteBehavior(
-                                    foreignKey.DeleteBehavior)
-                        });
+                        CreateForeignKeyOperation(
+                            table,
+                            foreignKey));
                 }
             }
 
-
             return operations;
         }
+
+        // ================================================================
+        // CREATE COLUMN
+        // ================================================================
+
+        private AddColumnOperation CreateColumnOperation(
+            TableSnapshot table,
+            ColumnSnapshot column)
+        {
+            var operation =
+                new AddColumnOperation
+                {
+                    Name =
+                        column.Name,
+
+                    Table =
+                        table.Name,
+
+                    Schema =
+                        table.Schema,
+
+                    ClrType =
+                        GetClrType(
+                            column.ClrType),
+
+                    ColumnType =
+                        column.ColumnType,
+
+                    IsNullable =
+                        column.IsNullable,
+
+                    MaxLength =
+                        column.MaxLength,
+
+                    IsUnicode =
+                        column.IsUnicode,
+
+                    IsFixedLength =
+                        column.IsFixedLength,
+
+                    Precision =
+                        column.Precision,
+
+                    Scale =
+                        column.Scale,
+
+                    DefaultValue =
+                        NormalizeJsonValue(
+                            column.DefaultValue),
+
+                    DefaultValueSql =
+                        column.DefaultValueSql,
+
+                    ComputedColumnSql =
+                        column.ComputedColumnSql,
+
+                    IsStored =
+                        column.IsStored,
+
+                    IsRowVersion =
+                        column.IsRowVersion
+                };
+
+            foreach (var annotation in
+                     column.Annotations)
+            {
+                operation[annotation.Key] =
+                    annotation.Value;
+            }
+
+            return operation;
+        }
+
+        // ================================================================
+        // CREATE INDEX
+        // ================================================================
+
+        private CreateIndexOperation CreateIndexOperation(
+            TableSnapshot table,
+            IndexSnapshot index)
+        {
+            return new CreateIndexOperation
+            {
+                Name =
+                    index.Name,
+
+                Schema =
+                    table.Schema,
+
+                Table =
+                    table.Name,
+
+                Columns =
+                    index.Columns.ToArray(),
+
+                IsUnique =
+                    index.IsUnique ?? false,
+
+                IsDescending =
+                    index.IsDescending?.ToArray()
+                    ?? Array.Empty<bool>(),
+
+                Filter =
+                    index.Filter
+            };
+        }
+
+        // ================================================================
+        // CREATE FOREIGN KEY
+        // ================================================================
+
+        private AddForeignKeyOperation CreateForeignKeyOperation(
+            TableSnapshot table,
+            ForeignKeySnapshot foreignKey)
+        {
+            return new AddForeignKeyOperation
+            {
+                Name =
+                    foreignKey.Name,
+
+                Schema =
+                    table.Schema,
+
+                Table =
+                    table.Name,
+
+                Columns =
+                    foreignKey.Columns.ToArray(),
+
+                PrincipalSchema =
+                    foreignKey.PrincipalSchema,
+
+                PrincipalTable =
+                    foreignKey.PrincipalTable,
+
+                PrincipalColumns =
+                    foreignKey.PrincipalColumns.ToArray(),
+
+                OnDelete =
+                    ConvertDeleteBehavior(
+                        foreignKey.DeleteBehavior)
+            };
+        }
+
+        // ================================================================
+        // COLUMN COMPARISON
+        // ================================================================
+
+        private static bool AreColumnsEqual(
+            ColumnSnapshot oldColumn,
+            ColumnSnapshot newColumn)
+        {
+            if (!string.Equals(
+                    oldColumn.Name,
+                    newColumn.Name,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            if (!string.Equals(
+                    oldColumn.ClrType,
+                    newColumn.ClrType,
+                    StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            if (!string.Equals(
+                    oldColumn.ColumnType,
+                    newColumn.ColumnType,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            if (oldColumn.IsNullable !=
+                newColumn.IsNullable)
+            {
+                return false;
+            }
+
+            if (oldColumn.MaxLength !=
+                newColumn.MaxLength)
+            {
+                return false;
+            }
+
+            if (oldColumn.IsUnicode !=
+                newColumn.IsUnicode)
+            {
+                return false;
+            }
+
+            if (oldColumn.IsFixedLength !=
+                newColumn.IsFixedLength)
+            {
+                return false;
+            }
+
+            if (oldColumn.Precision !=
+                newColumn.Precision)
+            {
+                return false;
+            }
+
+            if (oldColumn.Scale !=
+                newColumn.Scale)
+            {
+                return false;
+            }
+
+            if (oldColumn.IsIdentity !=
+                newColumn.IsIdentity)
+            {
+                return false;
+            }
+
+            if (oldColumn.IsRowVersion !=
+                newColumn.IsRowVersion)
+            {
+                return false;
+            }
+
+            if (!string.Equals(
+                    oldColumn.ComputedColumnSql,
+                    newColumn.ComputedColumnSql,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            if (!string.Equals(
+                    oldColumn.DefaultValueSql,
+                    newColumn.DefaultValueSql,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            return JsonValuesEqual(
+                oldColumn.DefaultValue,
+                newColumn.DefaultValue);
+        }
+
+        // ================================================================
+        // INDEX COMPARISON
+        // ================================================================
+
+        private static bool AreIndexesEqual(
+            IndexSnapshot oldIndex,
+            IndexSnapshot newIndex)
+        {
+            if (!string.Equals(
+                    oldIndex.Name,
+                    newIndex.Name,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            if (oldIndex.IsUnique !=
+                newIndex.IsUnique)
+            {
+                return false;
+            }
+
+            if (!StringListEqual(
+                    oldIndex.Columns,
+                    newIndex.Columns))
+            {
+                return false;
+            }
+
+            if (!BoolListEqual(
+                    oldIndex.IsDescending,
+                    newIndex.IsDescending))
+            {
+                return false;
+            }
+
+            return string.Equals(
+                oldIndex.Filter,
+                newIndex.Filter,
+                StringComparison.OrdinalIgnoreCase);
+        }
+
+        // ================================================================
+        // FK COMPARISON
+        // ================================================================
+
+        private static bool AreForeignKeysEqual(
+            ForeignKeySnapshot oldForeignKey,
+            ForeignKeySnapshot newForeignKey)
+        {
+            if (!string.Equals(
+                    oldForeignKey.Name,
+                    newForeignKey.Name,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            if (!StringListEqual(
+                    oldForeignKey.Columns,
+                    newForeignKey.Columns))
+            {
+                return false;
+            }
+
+            if (!string.Equals(
+                    oldForeignKey.PrincipalSchema,
+                    newForeignKey.PrincipalSchema,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            if (!string.Equals(
+                    oldForeignKey.PrincipalTable,
+                    newForeignKey.PrincipalTable,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            if (!StringListEqual(
+                    oldForeignKey.PrincipalColumns,
+                    newForeignKey.PrincipalColumns))
+            {
+                return false;
+            }
+
+            return oldForeignKey.DeleteBehavior ==
+                   newForeignKey.DeleteBehavior;
+        }
+
+        // ================================================================
+        // PK COMPARISON
+        // ================================================================
+
+        private static bool ArePrimaryKeysEqual(
+            PrimaryKeySnapshot oldPrimaryKey,
+            PrimaryKeySnapshot newPrimaryKey)
+        {
+            if (!string.Equals(
+                    oldPrimaryKey.Name,
+                    newPrimaryKey.Name,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            return StringListEqual(
+                oldPrimaryKey.Columns,
+                newPrimaryKey.Columns);
+        }
+
+        // ================================================================
+        // STRING LIST COMPARISON
+        // ================================================================
+
+        private static bool StringListEqual(
+            IEnumerable<string>? first,
+            IEnumerable<string>? second)
+        {
+            var firstList =
+                first?.ToList()
+                ?? new List<string>();
+
+            var secondList =
+                second?.ToList()
+                ?? new List<string>();
+
+            if (firstList.Count !=
+                secondList.Count)
+            {
+                return false;
+            }
+
+            for (var i = 0;
+                 i < firstList.Count;
+                 i++)
+            {
+                if (!string.Equals(
+                        firstList[i],
+                        secondList[i],
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        // ================================================================
+        // BOOL LIST COMPARISON
+        // ================================================================
+
+        private static bool BoolListEqual(
+            IEnumerable<bool>? first,
+            IEnumerable<bool>? second)
+        {
+            var firstList =
+                first?.ToList()
+                ?? new List<bool>();
+
+            var secondList =
+                second?.ToList()
+                ?? new List<bool>();
+
+            if (firstList.Count !=
+                secondList.Count)
+            {
+                return false;
+            }
+
+            for (var i = 0;
+                 i < firstList.Count;
+                 i++)
+            {
+                if (firstList[i] !=
+                    secondList[i])
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        // ================================================================
+        // JSON VALUE COMPARISON
+        // ================================================================
+
+        private static bool JsonValuesEqual(
+            object? first,
+            object? second)
+        {
+            var firstValue =
+                NormalizeJsonValue(first);
+
+            var secondValue =
+                NormalizeJsonValue(second);
+
+            if (firstValue == null &&
+                secondValue == null)
+            {
+                return true;
+            }
+
+            if (firstValue == null ||
+                secondValue == null)
+            {
+                return false;
+            }
+
+            return string.Equals(
+                firstValue.ToString(),
+                secondValue.ToString(),
+                StringComparison.Ordinal);
+        }
+
+        // ================================================================
+        // NORMALIZE JSON VALUE
+        // ================================================================
+
+        private static object? NormalizeJsonValue(
+            object? value)
+        {
+            if (value is not JsonElement element)
+                return value;
+
+            return element.ValueKind switch
+            {
+                JsonValueKind.Null =>
+                    null,
+
+                JsonValueKind.String =>
+                    element.GetString(),
+
+                JsonValueKind.True =>
+                    true,
+
+                JsonValueKind.False =>
+                    false,
+
+                JsonValueKind.Number when
+                    element.TryGetInt32(
+                        out var intValue) =>
+                    intValue,
+
+                JsonValueKind.Number when
+                    element.TryGetInt64(
+                        out var longValue) =>
+                    longValue,
+
+                JsonValueKind.Number when
+                    element.TryGetDecimal(
+                        out var decimalValue) =>
+                    decimalValue,
+
+                JsonValueKind.Number when
+                    element.TryGetDouble(
+                        out var doubleValue) =>
+                    doubleValue,
+
+                _ =>
+                    element.ToString()
+            };
+        }
+
+        // ================================================================
+        // FIND TABLE
+        // ================================================================
+
+        private static TableSnapshot? FindTable(
+            SchemaSnapshot snapshot,
+            string? schema,
+            string? tableName)
+        {
+            return snapshot.Tables.FirstOrDefault(
+                x =>
+                    string.Equals(
+                        x.Schema,
+                        schema,
+                        StringComparison.OrdinalIgnoreCase)
+                    &&
+                    string.Equals(
+                        x.Name,
+                        tableName,
+                        StringComparison.OrdinalIgnoreCase));
+        }
+
+        // ================================================================
+        // DELETE BEHAVIOR
+        // ================================================================
 
         private static ReferentialAction ConvertDeleteBehavior(
             DeleteBehavior behavior)
@@ -403,30 +1804,22 @@ namespace GenericRepository.AutoMigration
             };
         }
 
-
-
-
-        //***************************************************************************************************************
-        //***************************************************************************************************************
-        //***************************************************************************************************************
-
+        // ================================================================
+        // CREATE SNAPSHOT
+        // ================================================================
 
         private SchemaSnapshot CreateSnapshot()
         {
-
             var model =
                 _dbContext
                     .GetService<IDesignTimeModel>()
                     .Model;
 
-            var snapshot = new SchemaSnapshot();
+            var snapshot =
+                new SchemaSnapshot();
 
             foreach (var entity in model.GetEntityTypes())
             {
-                // ============================================================
-                // 1. Table Mapping
-                // ============================================================
-
                 var tableMapping =
                     entity
                         .GetTableMappings()
@@ -438,136 +1831,90 @@ namespace GenericRepository.AutoMigration
                 var tableName =
                     tableMapping.Table.Name;
 
-                if (string.IsNullOrWhiteSpace(tableName))
+                if (string.IsNullOrWhiteSpace(
+                        tableName))
+                {
                     continue;
-
-
-                var schema =
-                    tableMapping.Table.Schema ?? "dbo";
-
-
-                var table = new TableSnapshot
-                {
-                    Name = tableName,
-                    Schema = schema
-                };
-
-
-                // ============================================================
-                // Local helper:
-                // Property -> Column Name
-                // ============================================================
-
-                string? GetColumnName(
-                    IEntityType entityType,
-                    IProperty property,
-                    StoreObjectIdentifier table)
-                {
-                    var mapping =
-                        entityType
-                            .GetTableMappings()
-                            .FirstOrDefault(x =>
-                                x.Table.Name == table.Name &&
-                                x.Table.Schema == table.Schema);
-
-                    if (mapping == null)
-                        return null;
-
-                    var columnMapping =
-                        mapping.ColumnMappings
-                            .FirstOrDefault(x =>
-                                x.Property == property);
-
-                    if (columnMapping != null)
-                        return columnMapping.Column.Name;
-
-                    columnMapping =
-                        mapping.ColumnMappings
-                            .FirstOrDefault(x =>
-                                x.Property.Name == property.Name);
-
-                    return columnMapping?.Column.Name;
                 }
 
+                var schema =
+                    tableMapping.Table.Schema
+                    ?? "dbo";
 
-                // ============================================================
-                // 2. Columns
-                // ============================================================
+                var table =
+                    new TableSnapshot
+                    {
+                        Name =
+                            tableName,
 
-                foreach (var property in entity.GetProperties())
+                        Schema =
+                            schema
+                    };
+
+                // ========================================================
+                // COLUMNS
+                // ========================================================
+
+                foreach (var property in
+                         entity.GetProperties())
                 {
                     var columnMapping =
                         tableMapping.ColumnMappings
-                            .FirstOrDefault(x =>
-                                x.Property == property);
-
+                            .FirstOrDefault(
+                                x =>
+                                    x.Property == property);
 
                     if (columnMapping == null)
                     {
                         columnMapping =
                             tableMapping.ColumnMappings
-                                .FirstOrDefault(x =>
-                                    x.Property.Name == property.Name);
+                                .FirstOrDefault(
+                                    x =>
+                                        x.Property.Name ==
+                                        property.Name);
                     }
 
                     if (columnMapping == null)
                         continue;
 
-
                     var columnName =
                         columnMapping.Column.Name;
 
-                    if (string.IsNullOrWhiteSpace(columnName))
+                    if (string.IsNullOrWhiteSpace(
+                            columnName))
+                    {
                         continue;
-
-
-                    // --------------------------------------------------------
-                    // Annotations
-                    // --------------------------------------------------------
+                    }
 
                     var annotations =
                         new Dictionary<string, object?>();
 
-                    foreach (var annotation in property.GetAnnotations())
+                    foreach (var annotation in
+                             property.GetAnnotations())
                     {
-                        annotations[annotation.Name] =
+                        annotations[
+                            annotation.Name] =
                             annotation.Value;
                     }
 
-
-                    // --------------------------------------------------------
-                    // Identity
-                    // --------------------------------------------------------
-
                     var isIdentity =
                         property.GetValueGenerationStrategy()
-                        == SqlServerValueGenerationStrategy.IdentityColumn;
-
-
-                    // --------------------------------------------------------
-                    // Computed
-                    // --------------------------------------------------------
+                        ==
+                        SqlServerValueGenerationStrategy
+                            .IdentityColumn;
 
                     var computedColumnSql =
                         property.GetComputedColumnSql();
 
                     var isComputed =
-                        !string.IsNullOrWhiteSpace(computedColumnSql);
-
-
-                    // --------------------------------------------------------
-                    // RowVersion
-                    // --------------------------------------------------------
+                        !string.IsNullOrWhiteSpace(
+                            computedColumnSql);
 
                     var isRowVersion =
-                        property.IsConcurrencyToken &&
+                        property.IsConcurrencyToken
+                        &&
                         property.ValueGenerated ==
-                            ValueGenerated.OnAddOrUpdate;
-
-
-                    // --------------------------------------------------------
-                    // Column
-                    // --------------------------------------------------------
+                        ValueGenerated.OnAddOrUpdate;
 
                     var column =
                         new ColumnSnapshot
@@ -579,14 +1926,19 @@ namespace GenericRepository.AutoMigration
                                 columnName,
 
                             ClrType =
-                                property.ClrType.AssemblyQualifiedName
-                                ?? property.ClrType.FullName
-                                ?? property.ClrType.Name,
-
+                                property.ClrType
+                                    .AssemblyQualifiedName
+                                ??
+                                property.ClrType.FullName
+                                ??
+                                property.ClrType.Name,
 
                             ColumnType =
                                 columnMapping.Column.StoreType
-                                ?? property.GetRelationalTypeMapping().StoreType,
+                                ??
+                                property
+                                    .GetRelationalTypeMapping()
+                                    .StoreType,
 
                             IsNullable =
                                 property.IsNullable,
@@ -607,15 +1959,19 @@ namespace GenericRepository.AutoMigration
                                 property.GetScale(),
 
                             DefaultValue =
-                                !isIdentity &&
-                                !isComputed &&
+                                !isIdentity
+                                &&
+                                !isComputed
+                                &&
                                 !isRowVersion
                                     ? property.GetDefaultValue()
                                     : null,
 
                             DefaultValueSql =
-                                !isIdentity &&
-                                !isComputed &&
+                                !isIdentity
+                                &&
+                                !isComputed
+                                &&
                                 !isRowVersion
                                     ? property.GetDefaultValueSql()
                                     : null,
@@ -633,42 +1989,51 @@ namespace GenericRepository.AutoMigration
                                 annotations
                         };
 
-
-                    table.Columns.Add(column);
+                    table.Columns.Add(
+                        column);
                 }
 
-
-                // ============================================================
-                // 3. Primary Key
-                // ============================================================
+                // ========================================================
+                // PRIMARY KEY
+                // ========================================================
 
                 var primaryKey =
-    entity.FindPrimaryKey();
+                    entity.FindPrimaryKey();
 
                 if (primaryKey != null)
                 {
                     var primaryKeyColumns =
                         primaryKey.Properties
-                            .Select(property =>
-                            {
-                                var mapping =
-                                    tableMapping.ColumnMappings
-                                        .FirstOrDefault(x =>
-                                            x.Property == property);
+                            .Select(
+                                property =>
+                                {
+                                    var mapping =
+                                        tableMapping
+                                            .ColumnMappings
+                                            .FirstOrDefault(
+                                                x =>
+                                                    x.Property ==
+                                                    property);
 
-                                if (mapping != null)
-                                    return mapping.Column.Name;
+                                    if (mapping != null)
+                                        return mapping.Column.Name;
 
-                                var fallback =
-                                    tableMapping.ColumnMappings
-                                        .FirstOrDefault(x =>
-                                            x.Property.Name == property.Name);
+                                    var fallback =
+                                        tableMapping
+                                            .ColumnMappings
+                                            .FirstOrDefault(
+                                                x =>
+                                                    x.Property.Name ==
+                                                    property.Name);
 
-                                return fallback?.Column.Name
-                                    ?? property.Name;
-                            })
-                            .Where(x =>
-                                !string.IsNullOrWhiteSpace(x))
+                                    return fallback?.Column.Name
+                                           ??
+                                           property.Name;
+                                })
+                            .Where(
+                                x =>
+                                    !string.IsNullOrWhiteSpace(
+                                        x))
                             .ToList();
 
                     table.PrimaryKey =
@@ -682,93 +2047,101 @@ namespace GenericRepository.AutoMigration
                         };
                 }
 
+                // ========================================================
+                // INDEXES
+                // ========================================================
 
-
-                // ============================================================
-                // 4. Indexes
-                // ============================================================
-
-                foreach (var index in entity.GetIndexes())
+                foreach (var index in
+                         entity.GetIndexes())
                 {
                     var indexName =
                         index.GetDatabaseName()
-                        ?? index.Name;
+                        ??
+                        index.Name;
 
-                    if (string.IsNullOrWhiteSpace(indexName))
+                    if (string.IsNullOrWhiteSpace(
+                            indexName))
+                    {
                         continue;
-
+                    }
 
                     var indexColumns =
                         index.Properties
-                            .Select(property =>
-                            {
-                                var mapping =
-                                    tableMapping.ColumnMappings
-                                        .FirstOrDefault(x =>
-                                            x.Property == property);
+                            .Select(
+                                property =>
+                                {
+                                    var mapping =
+                                        tableMapping
+                                            .ColumnMappings
+                                            .FirstOrDefault(
+                                                x =>
+                                                    x.Property ==
+                                                    property);
 
-                                if (mapping != null)
-                                    return mapping.Column.Name;
+                                    if (mapping != null)
+                                        return mapping.Column.Name;
 
+                                    mapping =
+                                        tableMapping
+                                            .ColumnMappings
+                                            .FirstOrDefault(
+                                                x =>
+                                                    x.Property.Name ==
+                                                    property.Name);
 
-                                mapping =
-                                    tableMapping.ColumnMappings
-                                        .FirstOrDefault(x =>
-                                            x.Property.Name ==
-                                            property.Name);
-
-                                return mapping?.Column.Name
-                                    ?? property.Name;
-                            })
-                            .Where(x =>
-                                !string.IsNullOrWhiteSpace(x))
+                                    return mapping?.Column.Name
+                                           ??
+                                           property.Name;
+                                })
+                            .Where(
+                                x =>
+                                    !string.IsNullOrWhiteSpace(
+                                        x))
                             .ToList();
 
+                    if (index.IsDescending != null)
+                    {
 
 
-                    var isDescending =
-                        index.IsDescending?
-                            .Select(x => x != null ? x : false)
-                            .ToArray()
-                        ?? Array.Empty<bool>();
+                        var isDescending =
+                            index.IsDescending?
+                                .Select(x => x != null ? x : false)
+                                .ToArray()
+                            ??
+                            Array.Empty<bool>();
 
+                        table.Indexes.Add(
+                            new IndexSnapshot
+                            {
+                                Name =
+                                    indexName,
 
-                    var indexItem =
-                        new IndexSnapshot
-                        {
-                            Name =
-                                indexName,
+                                Columns =
+                                    indexColumns,
 
-                            Columns =
-                                indexColumns,
+                                IsUnique =
+                                    index.IsUnique,
 
-                            IsUnique =
-                                index.IsUnique,
+                                IsDescending =
+                                    isDescending,
 
-                            IsDescending =
-                                isDescending,
+                                Filter =
+                                    index.GetFilter()
+                            });
+                    }
 
-                            Filter =
-                                index.GetFilter()
-                        };
-
-
-                    table.Indexes.Add(indexItem);
                 }
 
 
-                // ============================================================
-                // 5. Foreign Keys
-                // ============================================================
+                // ========================================================
+                // FOREIGN KEYS
+                // ========================================================
 
-                foreach (var foreignKey in entity.GetForeignKeys())
+                foreach (var foreignKey in
+                         entity.GetForeignKeys())
                 {
                     var principalEntity =
                         foreignKey.PrincipalEntityType;
-
-                    // --------------------------------------------------------
-                    // Principal Table Mapping
-                    // --------------------------------------------------------
 
                     var principalTableMapping =
                         principalEntity
@@ -778,94 +2151,98 @@ namespace GenericRepository.AutoMigration
                     if (principalTableMapping == null)
                         continue;
 
-
                     var principalTableName =
                         principalTableMapping.Table.Name;
 
-                    if (string.IsNullOrWhiteSpace(principalTableName))
+                    if (string.IsNullOrWhiteSpace(
+                            principalTableName))
+                    {
                         continue;
-
+                    }
 
                     var principalSchema =
                         principalTableMapping.Table.Schema
-                        ?? "dbo";
-
-
-                    // --------------------------------------------------------
-                    // FK Constraint Name
-                    // --------------------------------------------------------
+                        ??
+                        "dbo";
 
                     var constraintName =
                         foreignKey.GetConstraintName();
 
-                    if (string.IsNullOrWhiteSpace(constraintName))
+                    if (string.IsNullOrWhiteSpace(
+                            constraintName))
+                    {
                         continue;
-
-
-                    // --------------------------------------------------------
-                    // Dependent Columns
-                    //
-                    // UserRole.RoleId
-                    // --------------------------------------------------------
+                    }
 
                     var foreignKeyColumns =
                         foreignKey.Properties
-                            .Select(property =>
-                            {
-                                var mapping =
-                                    tableMapping.ColumnMappings
-                                        .FirstOrDefault(x =>
-                                            x.Property == property);
+                            .Select(
+                                property =>
+                                {
+                                    var mapping =
+                                        tableMapping
+                                            .ColumnMappings
+                                            .FirstOrDefault(
+                                                x =>
+                                                    x.Property ==
+                                                    property);
 
-                                if (mapping != null)
-                                    return mapping.Column.Name;
+                                    if (mapping != null)
+                                        return mapping.Column.Name;
 
+                                    mapping =
+                                        tableMapping
+                                            .ColumnMappings
+                                            .FirstOrDefault(
+                                                x =>
+                                                    x.Property.Name ==
+                                                    property.Name);
 
-                                mapping =
-                                    tableMapping.ColumnMappings
-                                        .FirstOrDefault(x =>
-                                            x.Property.Name ==
-                                            property.Name);
-
-                                return mapping?.Column.Name
-                                    ?? property.Name;
-                            })
-                            .Where(x =>
-                                !string.IsNullOrWhiteSpace(x))
+                                    return mapping?.Column.Name
+                                           ??
+                                           property.Name;
+                                })
+                            .Where(
+                                x =>
+                                    !string.IsNullOrWhiteSpace(
+                                        x))
                             .ToList();
-
-
 
                     var principalColumns =
-                        foreignKey.PrincipalKey.Properties
-                            .Select(property =>
-                            {
-                                var mapping =
-                                    principalTableMapping.ColumnMappings
-                                        .FirstOrDefault(x =>
-                                            x.Property == property);
+                        foreignKey
+                            .PrincipalKey
+                            .Properties
+                            .Select(
+                                property =>
+                                {
+                                    var mapping =
+                                        principalTableMapping
+                                            .ColumnMappings
+                                            .FirstOrDefault(
+                                                x =>
+                                                    x.Property ==
+                                                    property);
 
-                                if (mapping != null)
-                                    return mapping.Column.Name;
+                                    if (mapping != null)
+                                        return mapping.Column.Name;
 
+                                    mapping =
+                                        principalTableMapping
+                                            .ColumnMappings
+                                            .FirstOrDefault(
+                                                x =>
+                                                    x.Property.Name ==
+                                                    property.Name);
 
-                                mapping =
-                                    principalTableMapping.ColumnMappings
-                                        .FirstOrDefault(x =>
-                                            x.Property.Name ==
-                                            property.Name);
-
-                                return mapping?.Column.Name
-                                    ?? property.Name;
-                            })
-                            .Where(x =>
-                                !string.IsNullOrWhiteSpace(x))
+                                    return mapping?.Column.Name
+                                           ??
+                                           property.Name;
+                                })
+                            .Where(
+                                x =>
+                                    !string.IsNullOrWhiteSpace(
+                                        x))
                             .ToList();
-
-
-                    // --------------------------------------------------------
-                    // Foreign Key Snapshot
-                    // --------------------------------------------------------
 
                     table.ForeignKeys.Add(
                         new ForeignKeySnapshot
@@ -890,120 +2267,288 @@ namespace GenericRepository.AutoMigration
                         });
                 }
 
-
-                // ============================================================
-                // 6. Add Table To Snapshot
-                // ============================================================
-
-                snapshot.Tables.Add(table);
+                snapshot.Tables.Add(
+                    table);
             }
-
 
             return snapshot;
         }
 
-
+        // ================================================================
+        // LOAD PREVIOUS SNAPSHOT
+        // ================================================================
 
         private async Task<SchemaSnapshot?>
             LoadSnapshotAsync(
                 CancellationToken cancellationToken)
         {
-            var exists = await _dbContext.Database
-                .SqlQueryRaw<int>(
-                    $"""
-                    SELECT COUNT(*) As Value
-                    FROM INFORMATION_SCHEMA.TABLES
-                    WHERE TABLE_SCHEMA = '{SnapshotSchema}'
-                      AND TABLE_NAME = '{SnapshotTable}'
-                    """)
-                .FirstAsync(cancellationToken);
+            var result =
+                new List<TableSnapshotSerialized>();
 
-            if (exists == 0)
-                return null;
+            var connection =
+                _dbContext
+                    .Database
+                    .GetDbConnection();
 
-            var tableSnapshot = await _dbContext.Database
-                .SqlQueryRaw<TableSnapshotSerialized>(
-                    $"""
-                    SELECT *
-                    FROM [{SnapshotSchema}].[{SnapshotTable}]
-                    """)
-                .ToListAsync(cancellationToken);
+            var shouldClose =
+                connection.State !=
+                ConnectionState.Open;
 
-            var result = new SchemaSnapshot()
+            if (shouldClose)
             {
-                Tables = tableSnapshot.Select(c => new TableSnapshot()
+                await connection.OpenAsync(
+                    cancellationToken);
+            }
+
+            try
+            {
+                await using var command =
+                    connection.CreateCommand();
+
+                command.CommandText =
+                    $"""
+                    IF OBJECT_ID(
+                        N'[{SnapshotSchema}].[{SnapshotTable}]',
+                        'U'
+                    ) IS NOT NULL
+                    BEGIN
+                        SELECT
+                            Id,
+                            TableName,
+                            SchemaName,
+                            JsonColumns,
+                            JsonPrimaryKey,
+                            JsonIndexes,
+                            JsonForeignKeys,
+                            UpdatedAt
+                        FROM
+                            [{SnapshotSchema}].[{SnapshotTable}];
+                    END
+                    """;
+
+                await using var reader =
+                    await command.ExecuteReaderAsync(
+                        cancellationToken);
+
+                while (await reader.ReadAsync(
+                           cancellationToken))
                 {
-                    Name = c.TableName,
-                    Schema = c.SchemaName,
-                    Columns = JsonSerializer.Deserialize<List<ColumnSnapshot>>(c.JsonColumns),
-                    PrimaryKey = JsonSerializer.Deserialize<PrimaryKeySnapshot>(c.JsonPrimaryKey),
-                    ForeignKeys = JsonSerializer.Deserialize<List<ForeignKeySnapshot>>(c.JsonForeignKeys),
-                    Indexes = JsonSerializer.Deserialize<List<IndexSnapshot>>(c.JsonIndexes)
+                    result.Add(
+                        new TableSnapshotSerialized
+                        {
+                            Id =
+                                reader.GetInt32(
+                                    reader.GetOrdinal(
+                                        "Id")),
 
-                }).ToList()
+                            TableName =
+                                reader.IsDBNull(
+                                    reader.GetOrdinal(
+                                        "TableName"))
+                                ? string.Empty
+                                : reader.GetString(
+                                    reader.GetOrdinal(
+                                        "TableName")),
 
-            };
-            if (tableSnapshot == null || tableSnapshot.Count() == 0)
+                            SchemaName =
+                                reader.IsDBNull(
+                                    reader.GetOrdinal(
+                                        "SchemaName"))
+                                ? "dbo"
+                                : reader.GetString(
+                                    reader.GetOrdinal(
+                                        "SchemaName")),
+
+                            JsonColumns =
+                                reader.IsDBNull(
+                                    reader.GetOrdinal(
+                                        "JsonColumns"))
+                                ? null
+                                : reader.GetString(
+                                    reader.GetOrdinal(
+                                        "JsonColumns")),
+
+                            JsonPrimaryKey =
+                                reader.IsDBNull(
+                                    reader.GetOrdinal(
+                                        "JsonPrimaryKey"))
+                                ? null
+                                : reader.GetString(
+                                    reader.GetOrdinal(
+                                        "JsonPrimaryKey")),
+
+                            JsonIndexes =
+                                reader.IsDBNull(
+                                    reader.GetOrdinal(
+                                        "JsonIndexes"))
+                                ? null
+                                : reader.GetString(
+                                    reader.GetOrdinal(
+                                        "JsonIndexes")),
+
+                            JsonForeignKeys =
+                                reader.IsDBNull(
+                                    reader.GetOrdinal(
+                                        "JsonForeignKeys"))
+                                ? null
+                                : reader.GetString(
+                                    reader.GetOrdinal(
+                                        "JsonForeignKeys")),
+
+                            UpdatedAt =
+                                reader.IsDBNull(
+                                    reader.GetOrdinal(
+                                        "UpdatedAt"))
+                                ? null
+                                : reader.GetDateTime(
+                                    reader.GetOrdinal(
+                                        "UpdatedAt"))
+                        });
+                }
+            }
+            finally
+            {
+                if (shouldClose)
+                {
+                    await connection.CloseAsync();
+                }
+            }
+
+            if (result.Count == 0)
                 return null;
 
-            return result;
+            var snapshot =
+                new SchemaSnapshot();
+
+            foreach (var item in result)
+            {
+                var table =
+                    new TableSnapshot
+                    {
+                        Name =
+                            item.TableName,
+
+                        Schema =
+                            item.SchemaName,
+
+                        Columns =
+                            DeserializeList<ColumnSnapshot>(
+                                item.JsonColumns),
+
+                        PrimaryKey =
+                            DeserializeObject<PrimaryKeySnapshot>(
+                                item.JsonPrimaryKey),
+
+                        Indexes =
+                            DeserializeList<IndexSnapshot>(
+                                item.JsonIndexes),
+
+                        ForeignKeys =
+                            DeserializeList<ForeignKeySnapshot>(
+                                item.JsonForeignKeys)
+                    };
+
+                snapshot.Tables.Add(
+                    table);
+            }
+
+            return snapshot;
         }
 
+        // ================================================================
+        // JSON DESERIALIZE LIST
+        // ================================================================
 
+        private static List<T> DeserializeList<T>(
+            string? json)
+        {
+            if (string.IsNullOrWhiteSpace(
+                    json))
+            {
+                return new List<T>();
+            }
 
+            return JsonSerializer.Deserialize<List<T>>(
+                       json)
+                   ??
+                   new List<T>();
+        }
+
+        // ================================================================
+        // JSON DESERIALIZE OBJECT
+        // ================================================================
+
+        private static T? DeserializeObject<T>(
+            string? json)
+            where T : class
+        {
+            if (string.IsNullOrWhiteSpace(
+                    json))
+            {
+                return null;
+            }
+
+            return JsonSerializer.Deserialize<T>(
+                json);
+        }
+
+        // ================================================================
+        // SAVE SNAPSHOT
+        // ================================================================
 
         private async Task SaveSnapshotAsync(
-    SchemaSnapshot snapshot,
-    CancellationToken cancellationToken = default)
+            SchemaSnapshot snapshot,
+            CancellationToken cancellationToken = default)
         {
             var qualifiedTable =
                 $"[{SnapshotSchema.Replace("]", "]]")}].[{SnapshotTable.Replace("]", "]]")}]";
 
-            // Create snapshot table if it does not exist
+            // ============================================================
+            // Create Snapshot Table
+            // ============================================================
+
             await _dbContext.Database.ExecuteSqlRawAsync(
                 $"""
-        IF OBJECT_ID(N'{SnapshotSchema}.{SnapshotTable}', 'U') IS NULL
-        BEGIN
-            CREATE TABLE {qualifiedTable}
-            (
-                Id INT IDENTITY(1,1) NOT NULL
-                    CONSTRAINT PK_{SnapshotTable} PRIMARY KEY,
+                IF OBJECT_ID(
+                    N'{SnapshotSchema}.{SnapshotTable}',
+                    'U'
+                ) IS NULL
+                BEGIN
+                    CREATE TABLE {qualifiedTable}
+                    (
+                        Id INT IDENTITY(1,1) NOT NULL
+                            CONSTRAINT PK_{SnapshotTable}
+                            PRIMARY KEY,
 
-                TableName NVARCHAR(128) NOT NULL,
-                SchemaName NVARCHAR(128) NOT NULL,
+                        TableName NVARCHAR(128) NOT NULL,
 
-                JsonColumns NVARCHAR(MAX) NULL,
-                JsonPrimaryKey NVARCHAR(MAX) NULL,
-                JsonIndexes NVARCHAR(MAX) NULL,
-                JsonForeignKeys NVARCHAR(MAX) NULL,
+                        SchemaName NVARCHAR(128) NOT NULL,
 
-                UpdatedAt DATETIME2 NOT NULL
-            );
+                        JsonColumns NVARCHAR(MAX) NULL,
 
-            CREATE UNIQUE INDEX UX_{SnapshotTable}_Schema_Table
-            ON {qualifiedTable}
-            (
-                SchemaName,
-                TableName
-            );
-        END
-        """,
+                        JsonPrimaryKey NVARCHAR(MAX) NULL,
+
+                        JsonIndexes NVARCHAR(MAX) NULL,
+
+                        JsonForeignKeys NVARCHAR(MAX) NULL,
+
+                        UpdatedAt DATETIME2 NOT NULL
+                    );
+
+                    CREATE UNIQUE INDEX
+                        UX_{SnapshotTable}_Schema_Table
+                    ON {qualifiedTable}
+                    (
+                        SchemaName,
+                        TableName
+                    );
+                END
+                """,
                 cancellationToken);
 
-            //List<(string SchemaName, string TableName)> deleteTable = new();
-
-            //foreach (var checkDeletedItem in snapshot.Tables)
-            //{
-            //    var deletedItem = await _dbContext.Database.ExecuteSqlRawAsync<(string SchemaName, string TableName)>(
-            //    @$" SELECT TableName,SchemaName 
-            //    FROM [{SnapshotSchema}].[{SnapshotTable}] 
-            //    where SchemaName = {checkDeletedItem.Schema} 
-            //    AND TableName = {checkDeletedItem.Name}"
-            //    , cancellationToken);
-
-            //    deleteTable.Add(());
-
-            //}
+            // ============================================================
+            // Save Each Table Snapshot
+            // ============================================================
 
             foreach (var item in snapshot.Tables)
             {
@@ -1041,67 +2586,210 @@ namespace GenericRepository.AutoMigration
 
                 await _dbContext.Database.ExecuteSqlRawAsync(
                     $"""
-            MERGE {qualifiedTable} AS Target
-            USING
-            (
-                SELECT
-                    @TableName AS TableName,
-                    @SchemaName AS SchemaName,
-                    @JsonColumns AS JsonColumns,
-                    @JsonPrimaryKey AS JsonPrimaryKey,
-                    @JsonIndexes AS JsonIndexes,
-                    @JsonForeignKeys AS JsonForeignKeys,
-                    SYSUTCDATETIME() AS UpdatedAt
-            ) AS Source
+                    MERGE {qualifiedTable} AS Target
+                    USING
+                    (
+                        SELECT
+                            @TableName AS TableName,
+                            @SchemaName AS SchemaName,
+                            @JsonColumns AS JsonColumns,
+                            @JsonPrimaryKey AS JsonPrimaryKey,
+                            @JsonIndexes AS JsonIndexes,
+                            @JsonForeignKeys AS JsonForeignKeys,
+                            SYSUTCDATETIME() AS UpdatedAt
+                    ) AS Source
 
-            ON Target.SchemaName = Source.SchemaName
-            AND Target.TableName = Source.TableName
+                    ON Target.SchemaName =
+                        Source.SchemaName
+                    AND Target.TableName =
+                        Source.TableName
 
-            WHEN MATCHED THEN
-                UPDATE SET
-                    JsonColumns = Source.JsonColumns,
-                    JsonPrimaryKey = Source.JsonPrimaryKey,
-                    JsonIndexes = Source.JsonIndexes,
-                    JsonForeignKeys = Source.JsonForeignKeys,
-                    UpdatedAt = Source.UpdatedAt
+                    WHEN MATCHED THEN
+                        UPDATE SET
+                            JsonColumns =
+                                Source.JsonColumns,
 
-            WHEN NOT MATCHED THEN
-                INSERT
-                (
-                    TableName,
-                    SchemaName,
-                    JsonColumns,
-                    JsonPrimaryKey,
-                    JsonIndexes,
-                    JsonForeignKeys,
-                    UpdatedAt
-                )
-                VALUES
-                (
-                    Source.TableName,
-                    Source.SchemaName,
-                    Source.JsonColumns,
-                    Source.JsonPrimaryKey,
-                    Source.JsonIndexes,
-                    Source.JsonForeignKeys,
-                    Source.UpdatedAt
-                );
-            """,
+                            JsonPrimaryKey =
+                                Source.JsonPrimaryKey,
+
+                            JsonIndexes =
+                                Source.JsonIndexes,
+
+                            JsonForeignKeys =
+                                Source.JsonForeignKeys,
+
+                            UpdatedAt =
+                                Source.UpdatedAt
+
+                    WHEN NOT MATCHED THEN
+                        INSERT
+                        (
+                            TableName,
+                            SchemaName,
+                            JsonColumns,
+                            JsonPrimaryKey,
+                            JsonIndexes,
+                            JsonForeignKeys,
+                            UpdatedAt
+                        )
+                        VALUES
+                        (
+                            Source.TableName,
+                            Source.SchemaName,
+                            Source.JsonColumns,
+                            Source.JsonPrimaryKey,
+                            Source.JsonIndexes,
+                            Source.JsonForeignKeys,
+                            Source.UpdatedAt
+                        );
+                    """,
                     new object[]
                     {
-                new SqlParameter("@TableName", item.Name),
-                new SqlParameter("@SchemaName", item.Schema),
-                new SqlParameter("@JsonColumns", jsonColumns),
-                new SqlParameter("@JsonPrimaryKey", jsonPrimaryKey),
-                new SqlParameter("@JsonIndexes", jsonIndexes),
-                new SqlParameter("@JsonForeignKeys", jsonForeignKeys)
+                        new SqlParameter(
+                            "@TableName",
+                            item.Name),
+
+                        new SqlParameter(
+                            "@SchemaName",
+                            item.Schema),
+
+                        new SqlParameter(
+                            "@JsonColumns",
+                            jsonColumns),
+
+                        new SqlParameter(
+                            "@JsonPrimaryKey",
+                            jsonPrimaryKey),
+
+                        new SqlParameter(
+                            "@JsonIndexes",
+                            jsonIndexes),
+
+                        new SqlParameter(
+                            "@JsonForeignKeys",
+                            jsonForeignKeys)
                     },
                     cancellationToken);
             }
+
+            // ============================================================
+            // DELETE SNAPSHOT ROWS FOR DELETED TABLES
+            // ============================================================
+
+            var currentTables =
+                snapshot.Tables
+                    .Select(
+                        x =>
+                            $"{x.Schema}|{x.Name}")
+                    .ToHashSet(
+                        StringComparer.OrdinalIgnoreCase);
+
+            var connection =
+                _dbContext
+                    .Database
+                    .GetDbConnection();
+
+            var shouldClose =
+                connection.State !=
+                ConnectionState.Open;
+
+            if (shouldClose)
+            {
+                await connection.OpenAsync(
+                    cancellationToken);
+            }
+
+            try
+            {
+                await using var command =
+                    connection.CreateCommand();
+
+                command.CommandText =
+                    $"""
+                    SELECT
+                        Id,
+                        SchemaName,
+                        TableName
+                    FROM
+                        [{SnapshotSchema}].[{SnapshotTable}];
+                    """;
+
+                var deletedIds =
+                    new List<int>();
+
+                await using var reader =
+                    await command.ExecuteReaderAsync(
+                        cancellationToken);
+
+                while (await reader.ReadAsync(
+                           cancellationToken))
+                {
+                    var id =
+                        reader.GetInt32(
+                            reader.GetOrdinal(
+                                "Id"));
+
+                    var schema =
+                        reader.GetString(
+                            reader.GetOrdinal(
+                                "SchemaName"));
+
+                    var tableName =
+                        reader.GetString(
+                            reader.GetOrdinal(
+                                "TableName"));
+
+                    var key =
+                        $"{schema}|{tableName}";
+
+                    if (!currentTables.Contains(key))
+                    {
+                        deletedIds.Add(id);
+                    }
+                }
+
+                await reader.CloseAsync();
+
+                foreach (var id in deletedIds)
+                {
+                    await using var deleteCommand =
+                        connection.CreateCommand();
+
+                    deleteCommand.CommandText =
+                        $"""
+                        DELETE FROM
+                            [{SnapshotSchema}].[{SnapshotTable}]
+                        WHERE Id = @Id;
+                        """;
+
+                    var parameter =
+                        deleteCommand.CreateParameter();
+
+                    parameter.ParameterName =
+                        "@Id";
+
+                    parameter.Value =
+                        id;
+
+                    deleteCommand.Parameters.Add(
+                        parameter);
+
+                    await deleteCommand.ExecuteNonQueryAsync(
+                        cancellationToken);
+                }
+            }
+            finally
+            {
+                if (shouldClose)
+                {
+                    await connection.CloseAsync();
+                }
+            }
         }
 
-
-
+        // ================================================================
+        // APPLICATION LOCK
+        // ================================================================
 
         private async Task AcquireApplicationLockAsync(
             CancellationToken cancellationToken)
@@ -1111,10 +2799,14 @@ namespace GenericRepository.AutoMigration
                 DECLARE @Result INT;
 
                 EXEC @Result = sp_getapplock
-                    @Resource = 'GenericRepository_AutoMigration',
-                    @LockMode = 'Exclusive',
-                    @LockOwner = 'Transaction',
-                    @LockTimeout = 60000;
+                    @Resource =
+                        'GenericRepository_AutoMigration',
+                    @LockMode =
+                        'Exclusive',
+                    @LockOwner =
+                        'Transaction',
+                    @LockTimeout =
+                        60000;
 
                 IF @Result < 0
                     THROW 51000,
@@ -1124,11 +2816,17 @@ namespace GenericRepository.AutoMigration
                 cancellationToken);
         }
 
+        // ================================================================
+        // CLR TYPE
+        // ================================================================
+
         private static Type GetClrType(
             string clrType)
         {
-            return Type.GetType(clrType)
-                   ?? typeof(string);
+            return Type.GetType(
+                       clrType)
+                   ??
+                   typeof(string);
         }
     }
 
