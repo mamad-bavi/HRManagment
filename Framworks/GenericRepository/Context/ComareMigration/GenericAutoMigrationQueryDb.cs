@@ -428,9 +428,7 @@ namespace GenericRepository.Context.ComareMigration
 
         private SchemaSnapshot CreateSnapshot()
         {
-            // مهم:
-            // برای AutoMigration از Design-Time Model استفاده می‌کنیم
-            // تا metadataهایی مثل Index.IsDescending در دسترس باشند.
+
             var model =
                 _dbContext
                     .GetService<IDesignTimeModel>()
@@ -458,9 +456,7 @@ namespace GenericRepository.Context.ComareMigration
                 if (string.IsNullOrWhiteSpace(tableName))
                     continue;
 
-                // Schema واقعی جدول
-                // SnapshotSchema مربوط به جدول Snapshot است
-                // و نباید برای Entity Table استفاده شود.
+
                 var schema =
                     tableMapping.Table.Schema ?? "dbo";
 
@@ -500,7 +496,6 @@ namespace GenericRepository.Context.ComareMigration
                     if (columnMapping != null)
                         return columnMapping.Column.Name;
 
-                    // Fallback برای مواقعی که reference یکسان نیست
                     columnMapping =
                         mapping.ColumnMappings
                             .FirstOrDefault(x =>
@@ -521,7 +516,7 @@ namespace GenericRepository.Context.ComareMigration
                             .FirstOrDefault(x =>
                                 x.Property == property);
 
-                    // اگر reference یکی نبود
+
                     if (columnMapping == null)
                     {
                         columnMapping =
@@ -603,7 +598,7 @@ namespace GenericRepository.Context.ComareMigration
                                 ?? property.ClrType.FullName
                                 ?? property.ClrType.Name,
 
-                            // از mapping واقعی Column استفاده می‌کنیم
+
                             ColumnType =
                                 columnMapping.Column.StoreType
                                 ?? property.GetRelationalTypeMapping().StoreType,
@@ -731,7 +726,6 @@ namespace GenericRepository.Context.ComareMigration
                                     return mapping.Column.Name;
 
 
-                                // Fallback
                                 mapping =
                                     tableMapping.ColumnMappings
                                         .FirstOrDefault(x =>
@@ -746,16 +740,6 @@ namespace GenericRepository.Context.ComareMigration
                             .ToList();
 
 
-                    // --------------------------------------------------------
-                    // IsDescending
-                    //
-                    // EF Core ممکن است برای ASC مقدار null داشته باشد.
-                    // برای Snapshot ما:
-                    //
-                    // null  -> false -> ASC
-                    // false -> false -> ASC
-                    // true  -> true  -> DESC
-                    // --------------------------------------------------------
 
                     var isDescending =
                         index.IsDescending?
@@ -852,7 +836,6 @@ namespace GenericRepository.Context.ComareMigration
                                     return mapping.Column.Name;
 
 
-                                // Fallback
                                 mapping =
                                     tableMapping.ColumnMappings
                                         .FirstOrDefault(x =>
@@ -867,11 +850,6 @@ namespace GenericRepository.Context.ComareMigration
                             .ToList();
 
 
-                    // --------------------------------------------------------
-                    // Principal Columns
-                    //
-                    // Role.Id
-                    // --------------------------------------------------------
 
                     var principalColumns =
                         foreignKey.PrincipalKey.Properties
@@ -886,7 +864,6 @@ namespace GenericRepository.Context.ComareMigration
                                     return mapping.Column.Name;
 
 
-                                // Fallback
                                 mapping =
                                     principalTableMapping.ColumnMappings
                                         .FirstOrDefault(x =>
