@@ -1,5 +1,5 @@
 using GenericRepository.Context;
-using GenericRepository.Context.AutoMigration;
+using GenericRepository.Context.ComareMigration;
 using GenericRepository.Contracts.Generic;
 using GenericRepository.Contracts.GenericCleanArchitecture;
 using GenericRepository.Repositories.Generic;

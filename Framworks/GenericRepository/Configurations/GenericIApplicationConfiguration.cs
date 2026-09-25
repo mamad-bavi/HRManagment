@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore.Migrations;
-using GenericRepository.Context.AutoMigration;
+using GenericRepository.Context.ComareMigration;
 
 namespace GenericRepository.Configurations
 {
