@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Migrations.Operations;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.DependencyInjection;
 using System.Data;
 using System.Text.Json;
@@ -41,48 +42,24 @@ namespace GenericRepository.AutoMigration
                     .Database;
         }
 
-        // ================================================================
-        // PUBLIC
-        // ================================================================
 
         public async Task SynchronizeAsync(
             CancellationToken cancellationToken = default)
         {
-            Console.WriteLine(
-                "===== AUTO MIGRATION START =====");
-
             try
             {
-                Console.WriteLine(
-                    "STEP 1 - Before SyncAsync");
-
                 await SyncAsync(
                     cancellationToken);
-
-                Console.WriteLine(
-                    "STEP 2 - After SyncAsync");
             }
             catch (Exception ex)
             {
-                Console.WriteLine(
-                    "===== AUTO MIGRATION ERROR =====");
-
-                Console.WriteLine(
-                    ex);
-
-                throw;
+                throw ex;
             }
-
-            Console.WriteLine(
-                "===== AUTO MIGRATION END =====");
         }
 
         public async Task SyncAsync(
             CancellationToken cancellationToken = default)
         {
-            // ============================================================
-            // 1. Database
-            // ============================================================
 
             if (!await _dbContext.Database.CanConnectAsync(
                     cancellationToken))
@@ -91,24 +68,15 @@ namespace GenericRepository.AutoMigration
                     cancellationToken);
             }
 
-            // ============================================================
-            // 2. Current EF Model Snapshot
-            // ============================================================
 
             var currentSnapshot =
                 CreateSnapshot();
 
-            // ============================================================
-            // 3. Previous Snapshot
-            // ============================================================
 
             var previousSnapshot =
                 await LoadSnapshotAsync(
                     cancellationToken);
 
-            // ============================================================
-            // 4. First Run
-            // ============================================================
 
             if (previousSnapshot == null)
             {
@@ -119,9 +87,6 @@ namespace GenericRepository.AutoMigration
                 return;
             }
 
-            // ============================================================
-            // 5. Build Migration Operations
-            // ============================================================
 
             var operations =
                 BuildOperations(
@@ -130,18 +95,10 @@ namespace GenericRepository.AutoMigration
 
             if (operations.Count == 0)
             {
-                Console.WriteLine(
-                    "No schema changes detected.");
-
                 return;
             }
 
-            Console.WriteLine(
-                $"Detected {operations.Count} migration operation(s).");
 
-            // ============================================================
-            // 6. Transaction
-            // ============================================================
 
             await using var transaction =
                 await _dbContext.Database.BeginTransactionAsync(
@@ -149,25 +106,17 @@ namespace GenericRepository.AutoMigration
 
             try
             {
-                // ========================================================
-                // 7. Application Lock
-                // ========================================================
+
 
                 await AcquireApplicationLockAsync(
                     cancellationToken);
 
-                // ========================================================
-                // 8. Generate SQL
-                // ========================================================
 
                 var commands =
                     _sqlGenerator.Generate(
                         operations,
                         _dbContext.Model);
 
-                // ========================================================
-                // 9. Execute SQL
-                // ========================================================
 
                 foreach (var command in commands)
                 {
@@ -177,31 +126,16 @@ namespace GenericRepository.AutoMigration
                         continue;
                     }
 
-                    Console.WriteLine(
-                        "----------------------------------------");
-
-                    Console.WriteLine(
-                        command.CommandText);
-
-                    Console.WriteLine(
-                        "----------------------------------------");
-
                     await _dbContext.Database.ExecuteSqlRawAsync(
                         command.CommandText,
                         cancellationToken);
                 }
 
-                // ========================================================
-                // 10. Save Snapshot ONLY after successful migration
-                // ========================================================
 
                 await SaveSnapshotAsync(
                     currentSnapshot,
                     cancellationToken);
 
-                // ========================================================
-                // 11. Commit
-                // ========================================================
 
                 await transaction.CommitAsync(
                     cancellationToken);
@@ -215,9 +149,7 @@ namespace GenericRepository.AutoMigration
             }
         }
 
-        // ================================================================
-        // BUILD OPERATIONS
-        // ================================================================
+
 
         private List<MigrationOperation> BuildOperations(
      SchemaSnapshot oldSnapshot,
@@ -226,16 +158,11 @@ namespace GenericRepository.AutoMigration
             var operations =
                 new List<MigrationOperation>();
 
-            // ============================================================
-            // DROP PHASE
-            // ============================================================
-
-            // 1. Foreign Keys
-            // FK ها باید قبل از حذف Table / Column حذف شوند.
-            operations.AddRange(AddDeletedForeignKeys(
+            AddDeletedForeignKeys(
                 oldSnapshot,
                 newSnapshot,
-                operations));
+                ref operations);
+
 
             operations.AddRange(AddChangedForeignKeys(
                 oldSnapshot,
@@ -264,11 +191,12 @@ namespace GenericRepository.AutoMigration
                 newSnapshot,
                 operations));
 
+
             // 4. Columns
-            operations.AddRange(AddDeletedColumns(
+            AddDeletedColumns(
                 oldSnapshot,
                 newSnapshot,
-                operations));
+                ref operations);
 
             operations.AddRange(AddModifiedColumns(
                 oldSnapshot,
@@ -276,15 +204,13 @@ namespace GenericRepository.AutoMigration
                 operations));
 
             // 5. Tables
-            operations.AddRange(AddDeletedTables(
+            AddDeletedTables(
                 oldSnapshot,
                 newSnapshot,
-                operations));
+                ref operations);
 
 
-            // ============================================================
             // CREATE PHASE
-            // ============================================================
 
             // 6. Tables
             operations.AddRange(AddNewTables(
@@ -322,9 +248,6 @@ namespace GenericRepository.AutoMigration
         }
 
 
-        // ================================================================
-        // NEW TABLES
-        // ================================================================
 
         private List<MigrationOperation> AddNewTables(
             SchemaSnapshot oldSnapshot,
@@ -367,9 +290,6 @@ namespace GenericRepository.AutoMigration
                         addColumn);
                 }
 
-                // --------------------------------------------------------
-                // Primary Key
-                // --------------------------------------------------------
 
                 if (table.PrimaryKey != null &&
                     table.PrimaryKey.Columns.Count > 0)
@@ -398,9 +318,6 @@ namespace GenericRepository.AutoMigration
             return operations;
         }
 
-        // ================================================================
-        // NEW COLUMNS
-        // ================================================================
 
         private List<MigrationOperation> AddNewColumns(
             SchemaSnapshot oldSnapshot,
@@ -442,16 +359,25 @@ namespace GenericRepository.AutoMigration
             return operations;
         }
 
-        // ================================================================
-        // DELETE TABLES
-        // ================================================================
 
-        private List<MigrationOperation> AddDeletedTables(
+        private void AddDeletedTables(
             SchemaSnapshot oldSnapshot,
             SchemaSnapshot newSnapshot,
-            List<MigrationOperation> operations)
+            ref List<MigrationOperation> operations)
         {
-            foreach (var oldTable in oldSnapshot.Tables)
+
+            SchemaSnapshot oldSnapshotWithOrderByDescending = new()
+            {
+                Tables = oldSnapshot.Tables.Where(x => x.ForeignKeys != null && x.ForeignKeys.Count() > 0)
+                .OrderByDescending(x => x.ForeignKeys.Count())
+                .ToList()
+            };
+
+            oldSnapshotWithOrderByDescending.Tables.AddRange(oldSnapshot.Tables
+                .Where(x => x.ForeignKeys == null || x.ForeignKeys.Count() == 0).ToList());
+
+
+            foreach (var oldTable in oldSnapshotWithOrderByDescending.Tables)
             {
                 var currentTable =
                     FindTable(
@@ -473,17 +399,14 @@ namespace GenericRepository.AutoMigration
                     });
             }
 
-            return operations;
         }
 
-        // ================================================================
-        // DELETE COLUMNS
-        // ================================================================
 
-        private List<MigrationOperation> AddDeletedColumns(
+
+        private void AddDeletedColumns(
             SchemaSnapshot oldSnapshot,
             SchemaSnapshot newSnapshot,
-            List<MigrationOperation> operations)
+            ref List<MigrationOperation> operations)
         {
             foreach (var oldTable in oldSnapshot.Tables)
             {
@@ -524,12 +447,8 @@ namespace GenericRepository.AutoMigration
                 }
             }
 
-            return operations;
         }
 
-        // ================================================================
-        // MODIFY COLUMNS
-        // ================================================================
 
         private List<MigrationOperation> AddModifiedColumns(
             SchemaSnapshot oldSnapshot,
@@ -641,9 +560,6 @@ namespace GenericRepository.AutoMigration
             return operations;
         }
 
-        // ================================================================
-        // PRIMARY KEY - DELETE
-        // ================================================================
 
         private List<MigrationOperation> AddDeletedPrimaryKeys(
             SchemaSnapshot oldSnapshot,
@@ -684,9 +600,6 @@ namespace GenericRepository.AutoMigration
             return operations;
         }
 
-        // ================================================================
-        // PRIMARY KEY - CHANGE
-        // ================================================================
 
         private List<MigrationOperation> AddChangedPrimaryKeys(
             SchemaSnapshot oldSnapshot,
@@ -756,10 +669,6 @@ namespace GenericRepository.AutoMigration
             return operations;
         }
 
-        // ================================================================
-        // PRIMARY KEY - NEW
-        // ================================================================
-
         private List<MigrationOperation> AddNewPrimaryKeys(
             SchemaSnapshot oldSnapshot,
             SchemaSnapshot newSnapshot,
@@ -807,9 +716,6 @@ namespace GenericRepository.AutoMigration
             return operations;
         }
 
-        // ================================================================
-        // INDEX - DELETE
-        // ================================================================
 
         private List<MigrationOperation> AddDeletedIndexes(
             SchemaSnapshot oldSnapshot,
@@ -858,9 +764,6 @@ namespace GenericRepository.AutoMigration
             return operations;
         }
 
-        // ================================================================
-        // INDEX - CHANGE
-        // ================================================================
 
         private List<MigrationOperation> AddChangedIndexes(
             SchemaSnapshot oldSnapshot,
@@ -923,9 +826,6 @@ namespace GenericRepository.AutoMigration
             return operations;
         }
 
-        // ================================================================
-        // INDEX - NEW
-        // ================================================================
 
         private List<MigrationOperation> AddNewIndexes(
             SchemaSnapshot oldSnapshot,
@@ -940,8 +840,7 @@ namespace GenericRepository.AutoMigration
                         table.Schema,
                         table.Name);
 
-                // New table:
-                // indexes are handled here.
+
                 if (oldTable == null)
                 {
                     oldTable =
@@ -978,22 +877,27 @@ namespace GenericRepository.AutoMigration
             return operations;
         }
 
-        // ================================================================
-        // FK - DELETE
-        // ================================================================
 
-        private List<MigrationOperation> AddDeletedForeignKeys(
+
+        private void AddDeletedForeignKeys(
     SchemaSnapshot oldSnapshot,
     SchemaSnapshot newSnapshot,
-    List<MigrationOperation> operations)
+    ref List<MigrationOperation> operations)
         {
-            foreach (var oldTable in oldSnapshot.Tables)
+            SchemaSnapshot oldSnapshotWithOrderByDescending = new()
             {
+                Tables = oldSnapshot.Tables.Where(x => x.ForeignKeys != null && x.ForeignKeys.Count() > 0)
+                .OrderByDescending(x => x.ForeignKeys.Count())
+                .ToList()
+            };
+
+
+
+            foreach (var oldTable in oldSnapshotWithOrderByDescending.Tables)
+            {
+
                 foreach (var oldForeignKey in oldTable.ForeignKeys)
                 {
-                    // --------------------------------------------------------
-                    // پیدا کردن جدول فعلی
-                    // --------------------------------------------------------
 
                     var currentTable =
                         FindTable(
@@ -1001,19 +905,11 @@ namespace GenericRepository.AutoMigration
                             oldTable.Schema,
                             oldTable.Name);
 
-                    // --------------------------------------------------------
-                    // اگر جدول وابسته کلاً حذف شده
-                    // FK همراه Table حذف می‌شود.
-                    //
-                    // بنابراین DropForeignKey جداگانه لازم نیست.
-                    // --------------------------------------------------------
+
 
                     if (currentTable == null)
                         continue;
 
-                    // --------------------------------------------------------
-                    // آیا FK هنوز وجود دارد؟
-                    // --------------------------------------------------------
 
                     var currentForeignKey =
                         currentTable.ForeignKeys.FirstOrDefault(
@@ -1023,16 +919,10 @@ namespace GenericRepository.AutoMigration
                                     oldForeignKey.Name,
                                     StringComparison.OrdinalIgnoreCase));
 
-                    // --------------------------------------------------------
-                    // FK هنوز وجود دارد
-                    // --------------------------------------------------------
 
                     if (currentForeignKey != null)
                         continue;
 
-                    // --------------------------------------------------------
-                    // FK حذف شده
-                    // --------------------------------------------------------
 
                     operations.Add(
                         new DropForeignKeyOperation
@@ -1049,25 +939,8 @@ namespace GenericRepository.AutoMigration
                 }
             }
 
-            // ================================================================
-            // VERY IMPORTANT
-            //
-            // اگر جدول Principal حذف شده باشد ولی جدول Dependent هنوز
-            // وجود داشته باشد، FK باید از جدول Dependent حذف شود.
-            //
-            // مثال:
-            //
-            // UserRole.RoleId
-            //      ↓
-            // Role.Id
-            //
-            // Role حذف شده
-            // UserRole هنوز هست
-            //
-            // بنابراین FK باید Drop شود.
-            // ================================================================
 
-            foreach (var oldTable in oldSnapshot.Tables)
+            foreach (var oldTable in oldSnapshotWithOrderByDescending.Tables)
             {
                 var currentDependentTable =
                     FindTable(
@@ -1075,28 +948,21 @@ namespace GenericRepository.AutoMigration
                         oldTable.Schema,
                         oldTable.Name);
 
-                // اگر خود جدول Dependent حذف شده،
-                // نیازی به DropForeignKey نیست.
                 if (currentDependentTable == null)
                     continue;
 
                 foreach (var oldForeignKey in oldTable.ForeignKeys)
                 {
-                    // Principal table در Snapshot جدید وجود دارد؟
+
                     var principalTable =
                         FindTable(
                             newSnapshot,
                             oldForeignKey.PrincipalSchema,
                             oldForeignKey.PrincipalTable);
 
-                    // Principal هنوز وجود دارد
                     if (principalTable != null)
                         continue;
 
-                    // --------------------------------------------------------
-                    // Principal حذف شده
-                    // FK باید حذف شود.
-                    // --------------------------------------------------------
 
                     var alreadyAdded =
                         operations
@@ -1136,11 +1002,10 @@ namespace GenericRepository.AutoMigration
                 }
             }
 
-            return operations;
         }
-        // ================================================================
-        // FK - CHANGE
-        // ================================================================
+
+
+
 
         private List<MigrationOperation> AddChangedForeignKeys(
             SchemaSnapshot oldSnapshot,
@@ -1202,9 +1067,7 @@ namespace GenericRepository.AutoMigration
             return operations;
         }
 
-        // ================================================================
-        // FK - NEW
-        // ================================================================
+
 
         private List<MigrationOperation> AddNewForeignKeys(
             SchemaSnapshot oldSnapshot,
@@ -1244,9 +1107,7 @@ namespace GenericRepository.AutoMigration
             return operations;
         }
 
-        // ================================================================
-        // CREATE COLUMN
-        // ================================================================
+
 
         private AddColumnOperation CreateColumnOperation(
             TableSnapshot table,
@@ -1316,9 +1177,6 @@ namespace GenericRepository.AutoMigration
             return operation;
         }
 
-        // ================================================================
-        // CREATE INDEX
-        // ================================================================
 
         private CreateIndexOperation CreateIndexOperation(
             TableSnapshot table,
@@ -1350,9 +1208,6 @@ namespace GenericRepository.AutoMigration
             };
         }
 
-        // ================================================================
-        // CREATE FOREIGN KEY
-        // ================================================================
 
         private AddForeignKeyOperation CreateForeignKeyOperation(
             TableSnapshot table,
@@ -1387,9 +1242,6 @@ namespace GenericRepository.AutoMigration
             };
         }
 
-        // ================================================================
-        // COLUMN COMPARISON
-        // ================================================================
 
         private static bool AreColumnsEqual(
             ColumnSnapshot oldColumn,
@@ -1488,9 +1340,6 @@ namespace GenericRepository.AutoMigration
                 newColumn.DefaultValue);
         }
 
-        // ================================================================
-        // INDEX COMPARISON
-        // ================================================================
 
         private static bool AreIndexesEqual(
             IndexSnapshot oldIndex,
@@ -1530,9 +1379,6 @@ namespace GenericRepository.AutoMigration
                 StringComparison.OrdinalIgnoreCase);
         }
 
-        // ================================================================
-        // FK COMPARISON
-        // ================================================================
 
         private static bool AreForeignKeysEqual(
             ForeignKeySnapshot oldForeignKey,
@@ -1580,9 +1426,6 @@ namespace GenericRepository.AutoMigration
                    newForeignKey.DeleteBehavior;
         }
 
-        // ================================================================
-        // PK COMPARISON
-        // ================================================================
 
         private static bool ArePrimaryKeysEqual(
             PrimaryKeySnapshot oldPrimaryKey,
@@ -1601,9 +1444,6 @@ namespace GenericRepository.AutoMigration
                 newPrimaryKey.Columns);
         }
 
-        // ================================================================
-        // STRING LIST COMPARISON
-        // ================================================================
 
         private static bool StringListEqual(
             IEnumerable<string>? first,
@@ -1639,9 +1479,6 @@ namespace GenericRepository.AutoMigration
             return true;
         }
 
-        // ================================================================
-        // BOOL LIST COMPARISON
-        // ================================================================
 
         private static bool BoolListEqual(
             IEnumerable<bool>? first,
@@ -1675,9 +1512,6 @@ namespace GenericRepository.AutoMigration
             return true;
         }
 
-        // ================================================================
-        // JSON VALUE COMPARISON
-        // ================================================================
 
         private static bool JsonValuesEqual(
             object? first,
@@ -1707,9 +1541,6 @@ namespace GenericRepository.AutoMigration
                 StringComparison.Ordinal);
         }
 
-        // ================================================================
-        // NORMALIZE JSON VALUE
-        // ================================================================
 
         private static object? NormalizeJsonValue(
             object? value)
@@ -1756,9 +1587,6 @@ namespace GenericRepository.AutoMigration
             };
         }
 
-        // ================================================================
-        // FIND TABLE
-        // ================================================================
 
         private static TableSnapshot? FindTable(
             SchemaSnapshot snapshot,
@@ -1778,9 +1606,6 @@ namespace GenericRepository.AutoMigration
                         StringComparison.OrdinalIgnoreCase));
         }
 
-        // ================================================================
-        // DELETE BEHAVIOR
-        // ================================================================
 
         private static ReferentialAction ConvertDeleteBehavior(
             DeleteBehavior behavior)
@@ -1803,10 +1628,6 @@ namespace GenericRepository.AutoMigration
                     ReferentialAction.NoAction
             };
         }
-
-        // ================================================================
-        // CREATE SNAPSHOT
-        // ================================================================
 
         private SchemaSnapshot CreateSnapshot()
         {
@@ -1851,9 +1672,6 @@ namespace GenericRepository.AutoMigration
                             schema
                     };
 
-                // ========================================================
-                // COLUMNS
-                // ========================================================
 
                 foreach (var property in
                          entity.GetProperties())
@@ -1993,9 +1811,6 @@ namespace GenericRepository.AutoMigration
                         column);
                 }
 
-                // ========================================================
-                // PRIMARY KEY
-                // ========================================================
 
                 var primaryKey =
                     entity.FindPrimaryKey();
@@ -2047,9 +1862,6 @@ namespace GenericRepository.AutoMigration
                         };
                 }
 
-                // ========================================================
-                // INDEXES
-                // ========================================================
 
                 foreach (var index in
                          entity.GetIndexes())
@@ -2133,9 +1945,6 @@ namespace GenericRepository.AutoMigration
                 }
 
 
-                // ========================================================
-                // FOREIGN KEYS
-                // ========================================================
 
                 foreach (var foreignKey in
                          entity.GetForeignKeys())
@@ -2274,9 +2083,6 @@ namespace GenericRepository.AutoMigration
             return snapshot;
         }
 
-        // ================================================================
-        // LOAD PREVIOUS SNAPSHOT
-        // ================================================================
 
         private async Task<SchemaSnapshot?>
             LoadSnapshotAsync(
@@ -2455,9 +2261,6 @@ namespace GenericRepository.AutoMigration
             return snapshot;
         }
 
-        // ================================================================
-        // JSON DESERIALIZE LIST
-        // ================================================================
 
         private static List<T> DeserializeList<T>(
             string? json)
@@ -2474,9 +2277,6 @@ namespace GenericRepository.AutoMigration
                    new List<T>();
         }
 
-        // ================================================================
-        // JSON DESERIALIZE OBJECT
-        // ================================================================
 
         private static T? DeserializeObject<T>(
             string? json)
@@ -2492,9 +2292,7 @@ namespace GenericRepository.AutoMigration
                 json);
         }
 
-        // ================================================================
-        // SAVE SNAPSHOT
-        // ================================================================
+
 
         private async Task SaveSnapshotAsync(
             SchemaSnapshot snapshot,
@@ -2503,52 +2301,52 @@ namespace GenericRepository.AutoMigration
             var qualifiedTable =
                 $"[{SnapshotSchema.Replace("]", "]]")}].[{SnapshotTable.Replace("]", "]]")}]";
 
-            // ============================================================
-            // Create Snapshot Table
-            // ============================================================
+
+            var transaction =
+                _dbContext.Database
+                    .CurrentTransaction?
+                    .GetDbTransaction();
+
 
             await _dbContext.Database.ExecuteSqlRawAsync(
                 $"""
-                IF OBJECT_ID(
-                    N'{SnapshotSchema}.{SnapshotTable}',
-                    'U'
-                ) IS NULL
-                BEGIN
-                    CREATE TABLE {qualifiedTable}
-                    (
-                        Id INT IDENTITY(1,1) NOT NULL
-                            CONSTRAINT PK_{SnapshotTable}
-                            PRIMARY KEY,
+        IF OBJECT_ID(
+            N'{SnapshotSchema}.{SnapshotTable}',
+            'U'
+        ) IS NULL
+        BEGIN
+            CREATE TABLE {qualifiedTable}
+            (
+                Id INT IDENTITY(1,1) NOT NULL
+                    CONSTRAINT PK_{SnapshotTable}
+                    PRIMARY KEY,
 
-                        TableName NVARCHAR(128) NOT NULL,
+                TableName NVARCHAR(128) NOT NULL,
 
-                        SchemaName NVARCHAR(128) NOT NULL,
+                SchemaName NVARCHAR(128) NOT NULL,
 
-                        JsonColumns NVARCHAR(MAX) NULL,
+                JsonColumns NVARCHAR(MAX) NULL,
 
-                        JsonPrimaryKey NVARCHAR(MAX) NULL,
+                JsonPrimaryKey NVARCHAR(MAX) NULL,
 
-                        JsonIndexes NVARCHAR(MAX) NULL,
+                JsonIndexes NVARCHAR(MAX) NULL,
 
-                        JsonForeignKeys NVARCHAR(MAX) NULL,
+                JsonForeignKeys NVARCHAR(MAX) NULL,
 
-                        UpdatedAt DATETIME2 NOT NULL
-                    );
+                UpdatedAt DATETIME2 NOT NULL
+            );
 
-                    CREATE UNIQUE INDEX
-                        UX_{SnapshotTable}_Schema_Table
-                    ON {qualifiedTable}
-                    (
-                        SchemaName,
-                        TableName
-                    );
-                END
-                """,
+            CREATE UNIQUE INDEX
+                UX_{SnapshotTable}_Schema_Table
+            ON {qualifiedTable}
+            (
+                SchemaName,
+                TableName
+            );
+        END
+        """,
                 cancellationToken);
 
-            // ============================================================
-            // Save Each Table Snapshot
-            // ============================================================
 
             foreach (var item in snapshot.Tables)
             {
@@ -2586,95 +2384,93 @@ namespace GenericRepository.AutoMigration
 
                 await _dbContext.Database.ExecuteSqlRawAsync(
                     $"""
-                    MERGE {qualifiedTable} AS Target
-                    USING
-                    (
-                        SELECT
-                            @TableName AS TableName,
-                            @SchemaName AS SchemaName,
-                            @JsonColumns AS JsonColumns,
-                            @JsonPrimaryKey AS JsonPrimaryKey,
-                            @JsonIndexes AS JsonIndexes,
-                            @JsonForeignKeys AS JsonForeignKeys,
-                            SYSUTCDATETIME() AS UpdatedAt
-                    ) AS Source
+            MERGE {qualifiedTable} AS Target
+            USING
+            (
+                SELECT
+                    @TableName AS TableName,
+                    @SchemaName AS SchemaName,
+                    @JsonColumns AS JsonColumns,
+                    @JsonPrimaryKey AS JsonPrimaryKey,
+                    @JsonIndexes AS JsonIndexes,
+                    @JsonForeignKeys AS JsonForeignKeys,
+                    SYSUTCDATETIME() AS UpdatedAt
+            ) AS Source
 
-                    ON Target.SchemaName =
-                        Source.SchemaName
-                    AND Target.TableName =
-                        Source.TableName
+            ON Target.SchemaName =
+                Source.SchemaName
 
-                    WHEN MATCHED THEN
-                        UPDATE SET
-                            JsonColumns =
-                                Source.JsonColumns,
+            AND Target.TableName =
+                Source.TableName
 
-                            JsonPrimaryKey =
-                                Source.JsonPrimaryKey,
+            WHEN MATCHED THEN
+                UPDATE SET
+                    JsonColumns =
+                        Source.JsonColumns,
 
-                            JsonIndexes =
-                                Source.JsonIndexes,
+                    JsonPrimaryKey =
+                        Source.JsonPrimaryKey,
 
-                            JsonForeignKeys =
-                                Source.JsonForeignKeys,
+                    JsonIndexes =
+                        Source.JsonIndexes,
 
-                            UpdatedAt =
-                                Source.UpdatedAt
+                    JsonForeignKeys =
+                        Source.JsonForeignKeys,
 
-                    WHEN NOT MATCHED THEN
-                        INSERT
-                        (
-                            TableName,
-                            SchemaName,
-                            JsonColumns,
-                            JsonPrimaryKey,
-                            JsonIndexes,
-                            JsonForeignKeys,
-                            UpdatedAt
-                        )
-                        VALUES
-                        (
-                            Source.TableName,
-                            Source.SchemaName,
-                            Source.JsonColumns,
-                            Source.JsonPrimaryKey,
-                            Source.JsonIndexes,
-                            Source.JsonForeignKeys,
-                            Source.UpdatedAt
-                        );
-                    """,
+                    UpdatedAt =
+                        Source.UpdatedAt
+
+            WHEN NOT MATCHED THEN
+                INSERT
+                (
+                    TableName,
+                    SchemaName,
+                    JsonColumns,
+                    JsonPrimaryKey,
+                    JsonIndexes,
+                    JsonForeignKeys,
+                    UpdatedAt
+                )
+                VALUES
+                (
+                    Source.TableName,
+                    Source.SchemaName,
+                    Source.JsonColumns,
+                    Source.JsonPrimaryKey,
+                    Source.JsonIndexes,
+                    Source.JsonForeignKeys,
+                    Source.UpdatedAt
+                );
+            """,
                     new object[]
                     {
-                        new SqlParameter(
-                            "@TableName",
-                            item.Name),
+                new SqlParameter(
+                    "@TableName",
+                    item.Name),
 
-                        new SqlParameter(
-                            "@SchemaName",
-                            item.Schema),
+                new SqlParameter(
+                    "@SchemaName",
+                    item.Schema),
 
-                        new SqlParameter(
-                            "@JsonColumns",
-                            jsonColumns),
+                new SqlParameter(
+                    "@JsonColumns",
+                    jsonColumns),
 
-                        new SqlParameter(
-                            "@JsonPrimaryKey",
-                            jsonPrimaryKey),
+                new SqlParameter(
+                    "@JsonPrimaryKey",
+                    jsonPrimaryKey),
 
-                        new SqlParameter(
-                            "@JsonIndexes",
-                            jsonIndexes),
+                new SqlParameter(
+                    "@JsonIndexes",
+                    jsonIndexes),
 
-                        new SqlParameter(
-                            "@JsonForeignKeys",
-                            jsonForeignKeys)
+                new SqlParameter(
+                    "@JsonForeignKeys",
+                    jsonForeignKeys)
                     },
                     cancellationToken);
             }
 
-            // ============================================================
-            // DELETE SNAPSHOT ROWS FOR DELETED TABLES
-            // ============================================================
 
             var currentTables =
                 snapshot.Tables
@@ -2685,13 +2481,10 @@ namespace GenericRepository.AutoMigration
                         StringComparer.OrdinalIgnoreCase);
 
             var connection =
-                _dbContext
-                    .Database
-                    .GetDbConnection();
+                _dbContext.Database.GetDbConnection();
 
             var shouldClose =
-                connection.State !=
-                ConnectionState.Open;
+                connection.State != ConnectionState.Open;
 
             if (shouldClose)
             {
@@ -2701,72 +2494,92 @@ namespace GenericRepository.AutoMigration
 
             try
             {
-                await using var command =
-                    connection.CreateCommand();
-
-                command.CommandText =
-                    $"""
-                    SELECT
-                        Id,
-                        SchemaName,
-                        TableName
-                    FROM
-                        [{SnapshotSchema}].[{SnapshotTable}];
-                    """;
 
                 var deletedIds =
                     new List<int>();
 
-                await using var reader =
-                    await command.ExecuteReaderAsync(
-                        cancellationToken);
 
-                while (await reader.ReadAsync(
-                           cancellationToken))
+
+                await using (var command = connection.CreateCommand())
                 {
-                    var id =
-                        reader.GetInt32(
-                            reader.GetOrdinal(
-                                "Id"));
-
-                    var schema =
-                        reader.GetString(
-                            reader.GetOrdinal(
-                                "SchemaName"));
-
-                    var tableName =
-                        reader.GetString(
-                            reader.GetOrdinal(
-                                "TableName"));
-
-                    var key =
-                        $"{schema}|{tableName}";
-
-                    if (!currentTables.Contains(key))
+                    if (transaction != null)
                     {
-                        deletedIds.Add(id);
+                        command.Transaction = transaction;
+                    }
+
+                    command.CommandText =
+                        $"""
+        SELECT
+            Id,
+            SchemaName,
+            TableName
+        FROM
+            [{DbName}].[{SnapshotSchema}].[{SnapshotTable}];
+        """;
+
+                    await using var reader =
+                        await command.ExecuteReaderAsync(
+                            cancellationToken);
+
+                    var idOrdinal =
+                        reader.GetOrdinal("Id");
+
+                    var schemaOrdinal =
+                        reader.GetOrdinal("SchemaName");
+
+                    var tableNameOrdinal =
+                        reader.GetOrdinal("TableName");
+
+                    while (await reader.ReadAsync(
+                               cancellationToken))
+                    {
+                        var id =
+                            reader.GetInt32(idOrdinal);
+
+                        var schema =
+                            reader.GetString(schemaOrdinal);
+
+                        var tableName =
+                            reader.GetString(tableNameOrdinal);
+
+                        var key =
+                            $"{schema}|{tableName}";
+
+                        if (!currentTables.Contains(key))
+                        {
+                            deletedIds.Add(id);
+                        }
                     }
                 }
 
-                await reader.CloseAsync();
 
                 foreach (var id in deletedIds)
                 {
                     await using var deleteCommand =
                         connection.CreateCommand();
 
+                    if (transaction != null)
+                    {
+                        deleteCommand.Transaction =
+                            transaction;
+                    }
+
                     deleteCommand.CommandText =
                         $"""
-                        DELETE FROM
-                            [{SnapshotSchema}].[{SnapshotTable}]
-                        WHERE Id = @Id;
-                        """;
+        DELETE FROM
+            [{DbName}].[{SnapshotSchema}].[{SnapshotTable}]
+        WHERE
+            Id = @Id;
+        """;
 
                     var parameter =
                         deleteCommand.CreateParameter();
 
                     parameter.ParameterName =
                         "@Id";
+
+                    parameter.DbType =
+                        DbType.Int32;
 
                     parameter.Value =
                         id;
@@ -2777,6 +2590,12 @@ namespace GenericRepository.AutoMigration
                     await deleteCommand.ExecuteNonQueryAsync(
                         cancellationToken);
                 }
+
+
+            }
+            catch
+            {
+                throw;
             }
             finally
             {
@@ -2787,12 +2606,10 @@ namespace GenericRepository.AutoMigration
             }
         }
 
-        // ================================================================
-        // APPLICATION LOCK
-        // ================================================================
+
 
         private async Task AcquireApplicationLockAsync(
-            CancellationToken cancellationToken)
+                CancellationToken cancellationToken)
         {
             await _dbContext.Database.ExecuteSqlRawAsync(
                 """
@@ -2816,9 +2633,6 @@ namespace GenericRepository.AutoMigration
                 cancellationToken);
         }
 
-        // ================================================================
-        // CLR TYPE
-        // ================================================================
 
         private static Type GetClrType(
             string clrType)
@@ -2829,5 +2643,7 @@ namespace GenericRepository.AutoMigration
                    typeof(string);
         }
     }
+
+
 
 }
