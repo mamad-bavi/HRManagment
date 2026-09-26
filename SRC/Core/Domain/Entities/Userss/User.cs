@@ -2,12 +2,13 @@
 
 namespace Domain.Entities.Userss
 {
-    public class User 
+    public class User : BaseEntity
     {
         public string FirstName { get; set; }
         public string LastName { get; set; }
 
-        public string PhoneNumber { get; set; }
+        public string Number { get; set; }
+        public string Phone { get; set; }
 
 
         public virtual ICollection<UserRole> UserRoles { get; set; }

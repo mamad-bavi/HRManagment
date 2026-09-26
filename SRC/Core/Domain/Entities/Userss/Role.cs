@@ -5,7 +5,7 @@ using System.Text;
 
 namespace Domain.Entities.Userss
 {
-    public class Role 
+    public class Role : BaseEntity
     {
         public string RoleCode { get; set; }
         public string Name { get; set; }
