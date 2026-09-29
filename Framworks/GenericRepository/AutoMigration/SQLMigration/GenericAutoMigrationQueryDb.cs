@@ -11,7 +11,7 @@ using Microsoft.Extensions.DependencyInjection;
 using System.Data;
 using System.Text.Json;
 
-namespace GenericRepository.AutoMigration
+namespace GenericRepository.AutoMigration.SQLMigration
 {
     public sealed class GenericAutoMigrationQueryDb
     {
