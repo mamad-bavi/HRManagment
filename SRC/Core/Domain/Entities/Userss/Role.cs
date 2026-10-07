@@ -9,6 +9,7 @@ namespace Domain.Entities.Userss
     {
         public string RoleCode { get; set; }
         public string Name { get; set; }
+        public string ScurityStamp { get; set; }
 
         public virtual ICollection<UserRole> UserRoles { get; set; }
 

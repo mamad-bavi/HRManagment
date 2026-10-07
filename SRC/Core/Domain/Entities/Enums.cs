@@ -1,8 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Text;
 
-namespace Domain.Entities.Person
+namespace Domain.Entities
 {
     public enum SkillVerificationStatus
     {
@@ -20,9 +21,9 @@ namespace Domain.Entities.Person
 
     public enum SkillType
     {
-        Technical,      // مهارت‌های فنی مثل C#, SQL, Networking
-        SoftSkill,      // مهارت‌های نرم مثل Communication, Leadership
-        Language        // زبان‌ها مثل English, Turkish, German
+        Technical,      // مهارت‌های فنی مثل C#, SQL
+        SoftSkill,      // مهارت‌های مدیریتی
+        Language        // زبان‌ها مثل انگلیسی ، آلمانی ، عربی
     }
 
     public enum EmploymentStatusType
@@ -68,6 +69,16 @@ namespace Domain.Entities.Person
         Rejected
     }
 
+
+    public enum Gender
+    {
+        [Display(Name ="آقا")]
+        Male = 1,
+        [Display(Name ="خانم")]
+        Famale = 2,
+        [Display(Name ="ناشناس")]
+        Unknow = 3
+    }
 
 
 }

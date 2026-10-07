@@ -6,7 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace Persistance.Repository.Location.CityRepository
+namespace Infrastructure.Repository.Location.CityRepository
 {
     public class CityRepository :
         RepositoryPublicAsyncEFCore<City>,

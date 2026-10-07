@@ -6,7 +6,7 @@ using GenericRepository.Context;
 using GenericRepository.Repositories.Generic;
 using GenericRepository.Repositories.GenericCleanArchitecture;
 
-namespace Persistance.Repository.Location.CityRepository
+namespace Infrastructure.Repository.Location.CityRepository
 {
     public class CityGetRepository :
         RepositoryGet<City>,

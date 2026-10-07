@@ -1,11 +1,12 @@
 ﻿using Domain.Entities.Location;
+using Infrastructure.FluentApi;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace Persistance.FluentApi.Location
+namespace Infrastructure.FluentApi.Location
 {
     public class ProvinceFluentApi : IBaseTypeConfiguration<Province>
     {

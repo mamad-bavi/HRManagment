@@ -1,15 +1,15 @@
 ﻿using Domain.Entities.Base;
 using GenericRepository.Configurations;
 using GenericRepository.Settings;
+using Infrastructure.FluentApi;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Persistance.FluentApi;
 using System;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Text;
 
-namespace Persistance.ConfigurationServices
+namespace Infrastructure.ConfigurationServices
 {
     public static class PersistanceConfiguration
     {

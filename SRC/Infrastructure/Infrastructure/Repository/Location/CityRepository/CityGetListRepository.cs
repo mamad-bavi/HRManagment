@@ -5,7 +5,7 @@ using Domain.Entities.Location;
 using GenericRepository.Context;
 using GenericRepository.Repositories.Generic;
 
-namespace Persistance.Repository.Location.CityRepository
+namespace Infrastructure.Repository.Location.CityRepository
 {
     public class CityGetListRepository :
         RepositoryPublicAsyncDtoEFCore<City, CityGetListDto>,

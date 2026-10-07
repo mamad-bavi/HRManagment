@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace Persistance.FluentApi
+namespace Infrastructure.FluentApi
 {
     public interface IBaseTypeConfiguration<T> : IEntityTypeConfiguration<T> where T : class
     {

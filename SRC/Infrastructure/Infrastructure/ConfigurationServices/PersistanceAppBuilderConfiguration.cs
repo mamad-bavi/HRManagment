@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Builder;
 using GenericRepository.Configurations;
 
-namespace Persistance.ConfigurationServices
+namespace Infrastructure.ConfigurationServices
 {
     public static class PersistanceAppBuilderConfiguration
     {

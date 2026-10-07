@@ -3,7 +3,7 @@ using System.Globalization;
 using System.Security.Claims;
 using System.Security.Principal;
 
-namespace Persistance.Utilities.Common
+namespace Infrastructure.Utilities.Common
 {
     public static class IdentityExtensions
     {

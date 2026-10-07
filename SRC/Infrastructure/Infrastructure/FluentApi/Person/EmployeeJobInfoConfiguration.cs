@@ -5,7 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace Persistance.FluentApi.Person
+namespace Infrastructure.FluentApi.Person
 {
     public class EmployeeJobInfoConfiguration
     : IEntityTypeConfiguration<EmployeeJobInfo>

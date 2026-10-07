@@ -1,8 +1,8 @@
 ﻿using Application.Contracts.Location.CityContract;
+using Infrastructure.Repository.Location.CityRepository;
 using Microsoft.Extensions.DependencyInjection;
-using Persistance.Repository.Location.CityRepository;
 
-namespace Persistance.ConfigurationServices
+namespace Infrastructure.ConfigurationServices
 {
     public static class AddLifecycleConfigurationServices
     {
