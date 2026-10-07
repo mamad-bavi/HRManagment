@@ -1,13 +1,4 @@
-
-using Domain.Entities.Base;
-using GenericRepository.Configurations;
-using GenericRepository.Context;
 using GenericRepository.Settings;
-using Persistance.FluentApi;
-using System.Reflection;
-using GenericRepository.Context;
-using GenericRepository.Settings;
-using System.Text.Json.Serialization;
 using Infrastructure.ConfigurationServices;
 
 

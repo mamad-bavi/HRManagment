@@ -1,5 +1,6 @@
 ﻿
 using Application.DTOs.Permission;
+using HRManagment.Api;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Reflection;
